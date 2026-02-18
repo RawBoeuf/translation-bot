@@ -4,17 +4,17 @@
 - **Project name**: Discord Translation Bot
 - **Repository**: https://github.com/RawBoeuf/translation-bot
 - **Type**: Discord bot with AI translation + web dashboard
-- **Core functionality**: Translates all messages in a Discord channel to a target language using Ollama's gemma3 model
+- **Core functionality**: Translates all messages in a Discord channel to a target language using the Ollama API
 - **Target users**: Discord server administrators/mods
 - **Dashboard**: http://localhost:3553
 
 ## Functionality Specification
 
 ### Core Features
-1. **Ollama Integration**: Connect to local Ollama API (http://localhost:11434) using gemma3 model
+1. **Ollama Integration**: Connect to local Ollama API (http://localhost:11434) using a configurable model
 2. **Channel Translation**: Monitor and translate all messages in specified channels
 3. **Target Language**: Configurable target language per channel
-4. **OCR/Text Recognition**: Extract and translate text from images using gemma3 vision
+4. **OCR/Text Recognition**: Extract and translate text from images using Ollama's vision model capability
 5. **Role-based Access**: Restrict translation to specific roles per channel
 6. **Ignored Users**: Block specific users from being translated
 

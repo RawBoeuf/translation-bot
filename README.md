@@ -1,11 +1,11 @@
 # Discord Translation Bot
 
-A Discord bot that translates messages in real-time using Ollama's gemma3 model, with a web dashboard for moderation.
+A Discord bot that translates messages in real-time using Ollama API, with a web dashboard for moderation.
 
 ## Features
 
 - Automatic message translation using local Ollama API
-- Image OCR (text recognition) using gemma3 vision
+- Image OCR (text recognition) using Ollama's vision model capability.
 - Web-based moderation dashboard
 - Prefix commands ($) for configuration
 - Role-based access control
@@ -152,7 +152,7 @@ Both prefix commands and slash commands are supported:
 
 ## OCR Feature
 
-The bot supports image text recognition (OCR) using gemma3's vision capabilities:
+The bot supports image text recognition (OCR) using Ollama's vision capabilities:
 
 1. Enable OCR in dashboard under "Channel Settings" tab
 2. When users post images in enabled channels, the bot will:
@@ -160,7 +160,7 @@ The bot supports image text recognition (OCR) using gemma3's vision capabilities
    - Translate the extracted text
 3. Use the "Image OCR Test" in the dashboard to test OCR
 
-Note: OCR requires a vision-capable gemma3 model (gemma3:4b or larger).
+Note: OCR requires a vision-capable model (i.e. gemma3:4b+).
 
 ## Recommended Models
 

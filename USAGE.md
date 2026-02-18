@@ -32,7 +32,7 @@ For setup and installation, see the [README](https://github.com/RawBoeuf/transla
 
 Once a channel is configured:
 1. Any user message in that channel triggers the bot
-2. The message is sent to Ollama's gemma3 model
+2. The message is sent to the configured Ollama model
 3. The bot replies with an embed showing:
    - The original message
    - The translated message
@@ -123,7 +123,7 @@ Displays all available commands.
 
 ## Supported Languages
 
-The bot uses Ollama's gemma3 model which supports many languages. Common examples:
+The bot uses the configured Ollama model which supports many languages. Common examples:
 - spanish / espanol
 - french
 - german
@@ -186,6 +186,8 @@ The dashboard requires an API key to modify settings:
 
 1. **Enter API Key**: Type your API key in the top-right input field
 2. **Default Key**: `translation-bot-secret` (set via `DASHBOARD_API_KEY` in `.env`)
+
+> **Security:** Change the default `DASHBOARD_API_KEY` before deploying. The default key is publicly known and should only be used for local development.
 3. **Admin Settings Tab**: View and manage admin roles
 
 **Without API Key**: You can view status, history, and stats but cannot modify any settings.
@@ -208,7 +210,7 @@ The bot can extract and translate text from images:
 
 2. **How it works**:
    - When users post images in OCR-enabled channels
-   - Bot extracts text using gemma3 vision model
+   - Bot extracts text using the configured OCR model
    - Translates the extracted text
 
 3. **Testing OCR**:
@@ -217,7 +219,7 @@ The bot can extract and translate text from images:
    - Select target language
    - Click "Extract & Translate"
 
-**Note**: OCR requires a vision-capable gemma3 model (gemma3:4b or larger)
+**Note**: OCR requires a vision-capable model (i.e. gemma3:4b+). See [Recommended Models](https://github.com/RawBoeuf/translation-bot#recommended-models) for suggestions.
 
 ## Tips
 
@@ -235,4 +237,4 @@ The bot can extract and translate text from images:
 | Bot not responding | Verify the bot has permission to send messages in the channel |
 | "Channel not found" error | Use `$translate set` in Discord directly rather than manual ID entry |
 | Slow translations | Ollama may need more resources; check system memory |
-| OCR not working | Ensure you're using a vision model (gemma3:4b or larger) |
+| OCR not working | Ensure you're using a vision-capable model. See [Recommended Models](https://github.com/RawBoeuf/translation-bot#recommended-models). |
