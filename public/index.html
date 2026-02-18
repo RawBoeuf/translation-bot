@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Translation Bot Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-primary: #0f0f12;
+      --bg-secondary: #1a1b1e;
+      --bg-card: rgba(40,40,45,0.9);
+      --bg-card-hover: rgba(45,45,50,0.95);
+      --text-primary: #e4e4e7;
+      --text-secondary: #949ba4;
+      --text-muted: #6d6f78;
+      --accent: #5865f2;
+      --accent-hover: #6875e5;
+      --accent-glow: rgba(88, 101, 242, 0.3);
+      --success: #23a55a;
+      --error: #f23f43;
+      --warning: #f0a500;
+      --border: rgba(255,255,255,0.05);
+      --border-hover: rgba(88, 101, 242, 0.2);
+      --input-bg: rgba(20,20,25,0.6);
+      --shadow: rgba(0,0,0,0.3);
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #f5f7fa;
+      --bg-secondary: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #fafafa;
+      --text-primary: #1a1a2e;
+      --text-secondary: #4a4a68;
+      --text-muted: #8888a0;
+      --accent: #5865f2;
+      --accent-hover: #4752c4;
+      --accent-glow: rgba(88, 101, 242, 0.15);
+      --success: #23a55a;
+      --error: #dc3545;
+      --warning: #f0a500;
+      --border: rgba(0,0,0,0.08);
+      --border-hover: rgba(88, 101, 242, 0.3);
+      --input-bg: rgba(0,0,0,0.04);
+      --shadow: rgba(0,0,0,0.08);
+    }
+
+    [data-theme="ocean"] {
+      --bg-primary: #0a1628;
+      --bg-secondary: #0d1f3c;
+      --bg-card: rgba(13, 47, 89, 0.7);
+      --bg-card-hover: rgba(20, 60, 100, 0.8);
+      --text-primary: #e8f4fd;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --success: #34d399;
+      --error: #f87171;
+      --warning: #fbbf24;
+      --border: rgba(56, 189, 248, 0.1);
+      --border-hover: rgba(56, 189, 248, 0.3);
+      --input-bg: rgba(0,0,0,0.3);
+      --shadow: rgba(0,0,0,0.4);
+    }
+
+    [data-theme="sunset"] {
+      --bg-primary: #1a0a0a;
+      --bg-secondary: #2d1515;
+      --bg-card: rgba(60, 30, 30, 0.7);
+      --bg-card-hover: rgba(80, 40, 40, 0.8);
+      --text-primary: #fef2f2;
+      --text-secondary: #fca5a5;
+      --text-muted: #f87171;
+      --accent: #f97316;
+      --accent-hover: #ea580c;
+      --accent-glow: rgba(249, 115, 22, 0.25);
+      --success: #4ade80;
+      --error: #f87171;
+      --warning: #fbbf24;
+      --border: rgba(249, 115, 22, 0.1);
+      --border-hover: rgba(249, 115, 22, 0.3);
+      --input-bg: rgba(0,0,0,0.3);
+      --shadow: rgba(0,0,0,0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      background-attachment: fixed;
+      transition: background 0.5s ease, color 0.3s ease;
+    }
+    
+    .header {
+      background: linear-gradient(180deg, rgba(30,30,35,0.98) 0%, rgba(25,25,30,0.95) 100%);
+      padding: 16px 40px;
+      border-bottom: 1px solid var(--accent-glow);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+    .header h1 { 
+      font-size: 1.4rem; 
+      color: var(--text-primary);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header h1::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      border-radius: 50%;
+      box-shadow: 0 0 15px var(--accent);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+    
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .theme-select {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .theme-select:hover {
+      border-color: var(--accent);
+    }
+    .theme-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    
+    .header .status-indicator { 
+      display: flex; 
+      align-items: center; 
+      gap: 10px; 
+      background: var(--input-bg);
+      padding: 8px 16px;
+      border-radius: 20px;
+    }
+    .dot { 
+      width: 10px; 
+      height: 10px; 
+      border-radius: 50%; 
+      background: var(--text-muted);
+      transition: all 0.3s ease;
+    }
+    .dot.online { 
+      background: var(--success); 
+      box-shadow: 0 0 12px rgba(35, 165, 90, 0.6);
+    }
+    .dot.offline { background: var(--error); box-shadow: 0 0 12px rgba(242, 63, 67, 0.6); }
+    
+    .container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      padding: 30px 40px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    
+    .card {
+      background: linear-gradient(145deg, var(--bg-card) 0%, var(--bg-card-hover) 100%);
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(5px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: slideUp 0.5s ease forwards;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    .card:nth-child(1) { animation-delay: 0.05s; }
+    .card:nth-child(2) { animation-delay: 0.1s; }
+    .card:nth-child(3) { animation-delay: 0.15s; }
+    .card:nth-child(4) { animation-delay: 0.2s; }
+    .card:nth-child(5) { animation-delay: 0.25s; }
+    .card:nth-child(6) { animation-delay: 0.3s; }
+    
+    @keyframes slideUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px var(--shadow);
+      border-color: var(--border-hover);
+    }
+    .card.full-width { grid-column: 1 / -1; }
+    .card.half-width { grid-column: span 2; }
+    .card h2 {
+      font-size: 1rem;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .card h2 .icon { margin-right: 8px; }
+    
+    .tabs { 
+      display: flex; 
+      gap: 6px; 
+      margin-bottom: 20px; 
+      flex-wrap: wrap;
+      background: var(--input-bg);
+      padding: 6px;
+      border-radius: 12px;
+    }
+    .tab {
+      padding: 10px 18px;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+    .tab.active { 
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover)); 
+      color: #fff;
+      box-shadow: 0 4px 15px var(--accent-glow);
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .status-item { 
+      background: var(--bg-card);
+      padding: 20px 16px; 
+      border-radius: 12px; 
+      text-align: center;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+    .status-item:hover { border-color: var(--accent); transform: scale(1.02); }
+    .status-item .label { 
+      font-size: 0.75rem; 
+      color: var(--text-secondary); 
+      margin-bottom: 8px; 
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+    .status-item .value { font-size: 1.3rem; color: var(--text-primary); font-weight: 600; }
+    .status-item .value.success { color: var(--success); }
+    .status-item .value.error { color: var(--error); }
+    .status-item .sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 6px; }
+    
+    /* Scrollbar styling for all themes */
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { 
+      background: var(--text-muted); 
+      border-radius: 4px; 
+      opacity: 0.5;
+    }
+    *::-webkit-scrollbar-thumb:hover { 
+      background: var(--text-secondary); 
+    }
+    
+    .channel-list { max-height: 380px; overflow-y: auto; scrollbar-width: thin; }
+    
+    .channel-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+    .channel-item:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+    }
+    .channel-item .info { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .channel-item .channel-name { 
+      color: var(--text-primary); 
+      font-weight: 600; 
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .channel-item .channel-id { 
+      color: var(--text-muted); 
+      font-size: 0.7rem; 
+      font-weight: 400;
+      font-family: monospace;
+      cursor: pointer;
+      padding: 2px 6px;
+      background: var(--input-bg);
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+    .channel-item .channel-id:hover { 
+      color: var(--text-secondary);
+      background: var(--border);
+    }
+    .channel-item .guild-name { 
+      color: var(--text-muted); 
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .channel-item .language { color: var(--text-secondary); font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+    .channel-item .badges { display: flex; gap: 6px; }
+    .channel-item .status-badge {
+      font-size: 0.65rem; 
+      padding: 3px 8px; 
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .channel-item .status-badge.enabled { background: rgba(35, 165, 90, 0.2); color: var(--success); }
+    .channel-item .status-badge.disabled { background: rgba(116,127,141,0.2); color: var(--text-secondary); }
+    .channel-item .status-badge.ocr-on { background: rgba(240, 165, 0, 0.2); color: var(--warning); }
+    .channel-item .status-badge.ocr-off { background: rgba(116,127,141,0.2); color: var(--text-secondary); }
+    .channel-item .actions { display: flex; gap: 6px; }
+    
+    .btn { 
+      padding: 8px 14px; 
+      border: none; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      font-size: 0.8rem; 
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(0); }
+    .btn-danger { background: rgba(242, 63, 67, 0.15); color: var(--error); border: 1px solid rgba(242, 63, 67, 0.3); }
+    .btn-danger:hover { background: rgba(242, 63, 67, 0.25); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #fff; }
+    .btn-primary:hover { box-shadow: 0 4px 20px var(--accent-glow); }
+    .btn-success { background: rgba(35, 165, 90, 0.15); color: var(--success); border: 1px solid rgba(35, 165, 90, 0.3); }
+    .btn-success:hover { background: rgba(35, 165, 90, 0.25); }
+    .btn-sm { padding: 5px 10px; font-size: 0.7rem; }
+    
+    .add-form {
+      display: flex; gap: 10px; margin-top: 18px; padding-top: 18px;
+      border-top: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .add-form input, .add-form select {
+      flex: 1; min-width: 140px; padding: 12px 14px; border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+    .add-form input:focus, .add-form select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .add-form input::placeholder { color: var(--text-muted); }
+    
+    .log-list, .history-list { max-height: 350px; overflow-y: auto; scrollbar-width: thin; }
+    
+    .log-item, .history-item {
+      padding: 14px 16px; 
+      background: var(--bg-card);
+      border-radius: 10px; 
+      margin-bottom: 8px;
+      border-left: 3px solid transparent;
+      transition: all 0.2s ease;
+    }
+    .log-item:hover, .history-item:hover {
+      background: var(--bg-card-hover);
+    }
+    .log-item.info { border-left-color: var(--accent); }
+    .log-item.translation { border-left-color: var(--success); }
+    .log-item.error { border-left-color: var(--error); }
+    .log-item.debug { border-left-color: var(--warning); }
+    .log-item { display: flex; gap: 12px; align-items: flex-start; }
+    .log-item .time { color: var(--text-muted); font-size: 0.75rem; min-width: 65px; font-weight: 500; }
+    .log-item .type { 
+      padding: 3px 8px; border-radius: 4px; font-size: 0.65rem; text-transform: uppercase; 
+      min-width: 60px; text-align: center; font-weight: 600; letter-spacing: 0.5px;
+    }
+    .log-item .type.info { background: rgba(88, 101, 242, 0.2); color: var(--accent); }
+    .log-item .type.translation { background: rgba(35, 165, 90, 0.2); color: var(--success); }
+    .log-item .type.error { background: rgba(242, 63, 67, 0.2); color: var(--error); }
+    .log-item .type.debug { background: rgba(240, 165, 0, 0.2); color: var(--warning); }
+    .log-item .msg { color: var(--text-secondary); flex: 1; font-size: 0.85rem; line-height: 1.4; }
+    
+    .history-item .header { display: flex; justify-content: space-between; padding: 0; border: none; margin-bottom: 10px; align-items: center; }
+    .history-item .meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 10px; }
+    .history-item .meta .channel { color: var(--text-secondary); }
+    .history-item .meta .author { color: var(--text-secondary); }
+    .history-item .content { font-size: 0.85rem; }
+    .history-item .original { 
+      color: var(--text-secondary); 
+      margin-bottom: 8px; 
+      padding: 10px;
+      background: var(--input-bg);
+      border-radius: 6px;
+      border-left: 2px solid var(--accent);
+    }
+    .history-item .translated { 
+      color: var(--success); 
+      padding: 10px;
+      background: rgba(35, 165, 90, 0.08);
+      border-radius: 6px;
+      border-left: 2px solid var(--success);
+    }
+    .history-item .translated .label { font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
+    
+    .test-translation { 
+      margin-top: 18px; 
+      padding-top: 18px; 
+      border-top: 1px solid var(--border); 
+    }
+    .test-translation textarea {
+      width: 100%; 
+      height: 90px; 
+      padding: 14px; 
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--input-bg); 
+      color: var(--text-primary); 
+      font-size: 0.9rem; 
+      resize: vertical; 
+      margin-bottom: 12px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+    .test-translation textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .test-translation .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .test-translation select {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--input-bg);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .test-result {
+      background: var(--bg-card);
+      padding: 16px; 
+      border-radius: 10px; 
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      animation: slideUp 0.3s ease;
+    }
+    .test-result .label { color: var(--text-muted); font-size: 0.7rem; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .test-result .text { color: var(--text-primary); font-size: 0.9rem; line-height: 1.5; }
+    .test-result .text.error { color: var(--error); }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .stats-card { 
+      background: var(--bg-card); 
+      padding: 18px; 
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .stats-card h3 { color: var(--text-primary); font-size: 0.85rem; margin-bottom: 14px; font-weight: 600; }
+    .lang-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .lang-bar .name { min-width: 70px; font-size: 0.8rem; color: var(--text-secondary); font-weight: 500; }
+    .lang-bar .bar { 
+      flex: 1; 
+      height: 8px; 
+      background: linear-gradient(90deg, var(--accent), var(--accent-hover)); 
+      border-radius: 4px; 
+      position: relative;
+      overflow: hidden;
+    }
+    .lang-bar .bar::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .lang-bar .count { min-width: 35px; text-align: right; font-size: 0.75rem; color: var(--text-muted); }
+    
+    .ignored-list { max-height: 220px; overflow-y: auto; scrollbar-width: thin; }
+    .ignored-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 14px; 
+      background: var(--bg-card); 
+      border-radius: 8px; 
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+    .ignored-item:hover {
+      background: var(--bg-card-hover);
+    }
+    .ignored-item .user-id { font-size: 0.85rem; color: var(--text-secondary); font-family: monospace; }
+    
+    .empty-state { 
+      text-align: center; 
+      padding: 40px; 
+      color: var(--text-muted); 
+      font-size: 0.9rem;
+    }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 10px; opacity: 0.5; }
+    .empty-state .icon { 
+      animation: float 3s ease-in-out infinite; 
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border-radius: 10px;
+    }
+    .toggle-container label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--text-muted);
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+    .toggle .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+    .toggle input:checked + .slider { background: var(--accent); }
+    .toggle input:checked + .slider:before { transform: translateX(20px); }
+    
+    .section-title {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    
+    #apiKey {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      width: 140px;
+    }
+    #apiKey:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      padding: 14px 20px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 30px var(--shadow);
+      animation: slideIn 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 280px;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(100px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error { border-left: 4px solid var(--error); }
+    .toast.info { border-left: 4px solid var(--accent); }
+    .toast .toast-icon { font-size: 1.1rem; }
+    .toast.success .toast-icon { color: var(--success); }
+    .toast.error .toast-icon { color: var(--error); }
+    .toast.info .toast-icon { color: var(--accent); }
+    .toast .toast-message { flex: 1; font-size: 0.85rem; color: var(--text-primary); }
+    
+    /* Loading spinner */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .container { grid-template-columns: 1fr 1fr; padding: 20px; }
+      .status-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; padding: 15px; }
+      .header { padding: 15px 20px; flex-direction: column; gap: 15px; }
+      .header-controls { flex-wrap: wrap; justify-content: center; }
+      .status-grid { grid-template-columns: 1fr 1fr; }
+    }
+    
+    /* Quick stats animation */
+    .stat-animate {
+      animation: countUp 0.5s ease;
+    }
+    @keyframes countUp {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    /* Card glow effect */
+    .card.glow:hover {
+      box-shadow: 0 0 30px var(--accent-glow);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><i class="fas fa-language"></i> Translation Bot</h1>
+    <div class="header-controls">
+      <select class="theme-select" id="themeSelect" onchange="changeTheme()">
+        <option value="dark">🌙 Dark</option>
+        <option value="light">☀️ Light</option>
+        <option value="ocean">🌊 Ocean</option>
+        <option value="sunset">🌅 Sunset</option>
+      </select>
+      <input type="password" id="apiKey" placeholder="API Key">
+      <div class="status-indicator">
+        <div class="dot" id="botDot"></div>
+        <span id="botStatus" style="font-size: 0.85rem; color: var(--text-secondary);">Connecting...</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="container">
+    <div class="card glow">
+      <h2><span class="icon"><i class="fas fa-chart-line"></i></span> System Status</h2>
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="label">Bot</div>
+          <div class="value" id="botValue">-</div>
+        </div>
+        <div class="status-item">
+          <div class="label">Ollama</div>
+          <div class="value" id="ollamaValue">-</div>
+        </div>
+        <div class="status-item">
+          <div class="label">Channels</div>
+          <div class="value" id="channelsValue">-</div>
+        </div>
+        <div class="status-item">
+          <div class="label">Translations</div>
+          <div class="value" id="translationsValue">-</div>
+          <div class="sub" id="translationsSub">total</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon"><i class="fas fa-hashtag"></i></span> Translation Channels</h2>
+      <div class="channel-list" id="channelList">
+        <div class="empty-state"><div class="icon"><i class="fas fa-inbox"></i></div>No channels configured</div>
+      </div>
+      <div class="add-form">
+        <input type="text" id="channelId" placeholder="Channel ID">
+        <input type="text" id="channelName" placeholder="Channel Name">
+        <input type="text" id="language" placeholder="Language">
+        <button class="btn btn-primary" onclick="addChannel()">Add</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon"><i class="fas fa-flask"></i></span> Quick Test</h2>
+      <div class="test-translation">
+        <textarea id="testText" placeholder="Enter text to translate..."></textarea>
+        <div class="controls">
+          <select id="testLanguage">
+            <option value="spanish">Spanish</option>
+            <option value="french">French</option>
+            <option value="german">German</option>
+            <option value="japanese">Japanese</option>
+            <option value="chinese">Chinese</option>
+          </select>
+          <button class="btn btn-success" onclick="testTranslation()"><i class="fas fa-play"></i> Translate</button>
+        </div>
+        <div id="testResult"></div>
+      </div>
+    </div>
+
+    <div class="card half-width">
+      <h2><span class="icon"><i class="fas fa-list"></i></span> Activity Log</h2>
+      <div class="log-list" id="logList">
+        <div class="empty-state"><div class="icon"><i class="fas fa-clipboard"></i></div>No activity yet</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon"><i class="fas fa-chart-pie"></i></span> Statistics</h2>
+      <div class="stats-grid">
+        <div class="stats-card">
+          <h3>Translations by Language</h3>
+          <div id="langStats">
+            <div class="empty-state" style="padding: 20px;">No data</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card full-width">
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('history')"><i class="fas fa-history"></i> History</button>
+        <button class="tab" onclick="showTab('channels')"><i class="fas fa-cog"></i> Settings</button>
+        <button class="tab" onclick="showTab('ignored')"><i class="fas fa-user-slash"></i> Ignored</button>
+        <button class="tab" onclick="showTab('roles')"><i class="fas fa-shield-alt"></i> Roles</button>
+        <button class="tab" onclick="showTab('admin')"><i class="fas fa-tools"></i> Admin</button>
+      </div>
+      
+      <div id="tab-history" class="tab-content active">
+        <div class="history-list" id="historyList">
+          <div class="empty-state"><div class="icon"><i class="fas fa-sync"></i></div>No translations yet</div>
+        </div>
+      </div>
+      
+      <div id="tab-channels" class="tab-content">
+        <div class="channel-settings" id="channelSettings">
+          <div class="empty-state"><div class="icon"><i class="fas fa-cog"></i></div>No channels configured</div>
+        </div>
+      </div>
+      
+      <div id="tab-ignored" class="tab-content">
+        <div class="add-form">
+          <input type="text" id="ignoreUserId" placeholder="User ID to ignore">
+          <button class="btn btn-primary" onclick="addIgnoredUser()"><i class="fas fa-plus"></i> Add</button>
+        </div>
+        <div class="ignored-list" id="ignoredList" style="margin-top: 15px;">
+          <div class="empty-state"><div class="icon"><i class="fas fa-user"></i></div>No ignored users</div>
+        </div>
+      </div>
+
+      <div id="tab-roles" class="tab-content">
+        <div style="margin-bottom: 25px;">
+          <div class="section-title"><i class="fas fa-language"></i> Translation Roles</div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Users with these roles can trigger translations.</p>
+          <div class="add-form">
+            <select id="roleChannelSelect" onchange="showRoleManagement()">
+              <option value="">Select a channel...</option>
+            </select>
+            <input type="text" id="roleId" placeholder="Role ID">
+            <input type="text" id="roleName" placeholder="Role Name">
+            <button class="btn btn-primary" onclick="addRole()"><i class="fas fa-plus"></i> Add</button>
+          </div>
+          <div id="roleManagement" style="margin-top: 15px;">
+            <div class="empty-state">Select a channel to manage roles</div>
+          </div>
+        </div>
+        
+        <div style="border-top: 1px solid var(--border); padding-top: 20px;">
+          <div class="section-title"><i class="fas fa-eye"></i> OCR Roles</div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Users with these roles can trigger OCR translation.</p>
+          <div class="add-form">
+            <select id="ocrRoleChannelSelect" onchange="showOcrRoleManagement()">
+              <option value="">Select a channel...</option>
+            </select>
+            <input type="text" id="ocrRoleId" placeholder="Role ID">
+            <input type="text" id="ocrRoleName" placeholder="Role Name">
+            <button class="btn btn-primary" onclick="addOcrRole()"><i class="fas fa-plus"></i> Add</button>
+          </div>
+          <div id="ocrRoleManagement" style="margin-top: 15px;">
+            <div class="empty-state">Select a channel to manage OCR roles</div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 15px; padding: 12px; background: var(--input-bg); border-radius: 8px; font-size: 0.75rem; color: var(--text-muted);">
+          <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Enable Developer Mode in Discord, then right-click a role to copy its ID
+        </div>
+      </div>
+
+      <div id="tab-admin" class="tab-content">
+        <div class="section-title"><i class="fas fa-language"></i> Translation Model</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Select the Ollama model to use for text translations.</p>
+        <div class="add-form">
+          <select id="modelSelect" onchange="changeModel()">
+            <option value="">Loading models...</option>
+          </select>
+          <button class="btn btn-primary" onclick="refreshModels()"><i class="fas fa-sync"></i> Refresh</button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;" id="modelStatus">Current: gemma3</p>
+        
+        <div class="section-title" style="margin-top: 20px;"><i class="fas fa-camera"></i> OCR Model</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Select the Ollama model to use for extracting text from images. Leave empty to use translation model.</p>
+        <div class="add-form">
+          <select id="ocrModelSelect" onchange="changeOcrModel()">
+            <option value="">Loading models...</option>
+          </select>
+          <button class="btn btn-primary" onclick="refreshModels()"><i class="fas fa-sync"></i> Refresh</button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;" id="ocrModelStatus">Current: Default (same as translation)</p>
+        
+        <div class="section-title" style="margin-top: 20px;"><i class="fas fa-bug"></i> Debug Settings</div>
+        <div class="toggle-container">
+          <label class="toggle">
+            <input type="checkbox" id="debugToggle" onchange="toggleDebug()">
+            <span class="slider"></span>
+          </label>
+          <span style="color: var(--text-secondary); font-size: 0.9rem;">Show debug messages in Activity Log</span>
+        </div>
+        
+        <div class="section-title" style="margin-top: 20px;"><i class="fas fa-book"></i> Log Channel</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Send bot logs to a Discord channel.</p>
+        <div class="add-form">
+          <input type="text" id="logChannelId" placeholder="Channel ID">
+          <button class="btn btn-primary" onclick="setLogChannel()"><i class="fas fa-check"></i> Set</button>
+          <button class="btn btn-danger" onclick="removeLogChannel()"><i class="fas fa-times"></i> Remove</button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;" id="logChannelStatus">Current: Not set</p>
+
+        <div class="section-title" style="margin-top: 20px;"><i class="fas fa-bug"></i> Debug Log Channel</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Send debug logs to a separate channel.</p>
+        <div class="add-form">
+          <input type="text" id="debugLogChannelId" placeholder="Channel ID">
+          <button class="btn btn-primary" onclick="setDebugLogChannel()"><i class="fas fa-check"></i> Set</button>
+          <button class="btn btn-danger" onclick="removeDebugLogChannel()"><i class="fas fa-times"></i> Remove</button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;" id="debugLogChannelStatus">Current: Not set</p>
+        
+        <div class="section-title" style="margin-top: 20px;"><i class="fas fa-shield"></i> Admin Roles</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">These roles can configure bot settings.</p>
+        <div class="add-form">
+          <input type="text" id="adminRoleId" placeholder="Role ID">
+          <input type="text" id="adminRoleName" placeholder="Role Name">
+          <button class="btn btn-primary" onclick="addAdminRole()"><i class="fas fa-plus"></i> Add</button>
+        </div>
+        <div class="ignored-list" id="adminRolesList" style="margin-top: 15px;">
+          <div class="empty-state"><div class="icon"><i class="fas fa-lock"></i></div>No admin roles configured</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTab = 'history';
+    let currentTheme = 'dark';
+    
+    function changeTheme() {
+      const theme = document.getElementById('themeSelect').value;
+      currentTheme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('dashboard-theme', theme);
+    }
+    
+    function loadTheme() {
+      const saved = localStorage.getItem('dashboard-theme');
+      if (saved) {
+        document.getElementById('themeSelect').value = saved;
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+    }
+    
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      
+      const icons = {
+        success: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-circle',
+        info: 'fas fa-info-circle'
+      };
+      
+      toast.innerHTML = `
+        <i class="toast-icon ${icons[type]}"></i>
+        <span class="toast-message">${message}</span>
+      `;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+    
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Failed to copy', 'error');
+      });
+    }
+    
+    function showTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+    }
+
+    function getHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'x-api-key': document.getElementById('apiKey').value || ''
+      };
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        
+        const botDot = document.getElementById('botDot');
+        const botStatus = document.getElementById('botStatus');
+        const botValue = document.getElementById('botValue');
+        
+        if (data.bot && data.bot.ready) {
+          botDot.className = 'dot online';
+          botStatus.textContent = 'Connected';
+          botValue.textContent = data.bot.tag.split('#')[0];
+          botValue.className = 'value success';
+        } else {
+          botDot.className = 'dot offline';
+          botStatus.textContent = 'Disconnected';
+          botValue.textContent = 'Offline';
+          botValue.className = 'value error';
+        }
+        
+        const ollamaValue = document.getElementById('ollamaValue');
+        if (data.ollama.available) {
+          ollamaValue.textContent = 'Online';
+          ollamaValue.className = 'value success';
+        } else {
+          ollamaValue.textContent = 'Offline';
+          ollamaValue.className = 'value error';
+        }
+        
+        document.getElementById('channelsValue').textContent = data.channels.length;
+        renderChannels(data.channels);
+      } catch (e) {
+        console.error('Failed to fetch status:', e);
+      }
+    }
+
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const stats = await res.json();
+        
+        const transEl = document.getElementById('translationsValue');
+        transEl.textContent = stats.totalTranslations || 0;
+        transEl.classList.add('stat-animate');
+        setTimeout(() => transEl.classList.remove('stat-animate'), 500);
+        
+        const langStats = document.getElementById('langStats');
+        const languages = stats.languages || {};
+        const total = Object.values(languages).reduce((a, b) => a + b, 0) || 1;
+        
+        if (Object.keys(languages).length === 0) {
+          langStats.innerHTML = '<div class="empty-state" style="padding: 20px;">No data</div>';
+        } else {
+          langStats.innerHTML = Object.entries(languages)
+            .sort((a, b) => b[1] - a[1])
+            .map(([lang, count]) => `
+              <div class="lang-bar">
+                <span class="name">${lang}</span>
+                <div class="bar" style="width: ${(count / total) * 100}%"></div>
+                <span class="count">${count}</span>
+              </div>
+            `).join('');
+        }
+      } catch (e) {
+        console.error('Failed to fetch stats:', e);
+      }
+    }
+
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        let logs = await res.json();
+        
+        const showDebug = window.appSettings?.showDebug;
+        if (!showDebug) {
+          logs = logs.filter(l => l.type !== 'debug');
+        }
+        
+        renderLogs(logs);
+      } catch (e) {
+        console.error('Failed to fetch logs:', e);
+      }
+    }
+
+    async function fetchHistory() {
+      try {
+        const res = await fetch('/api/history');
+        const history = await res.json();
+        renderHistory(history);
+      } catch (e) {
+        console.error('Failed to fetch history:', e);
+      }
+    }
+
+    async function fetchConfig() {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        renderIgnoredUsers(config.ignoredUsers || []);
+        renderChannelSettings(config.channels || []);
+        
+        const roleSelect = document.getElementById('roleChannelSelect');
+        const currentValue = roleSelect.value;
+        roleSelect.innerHTML = '<option value="">Select a channel...</option>' + 
+          (config.channels || []).map(c => `<option value="${c.id}">#${c.channelName || c.id}</option>`).join('');
+        roleSelect.value = currentValue;
+        
+        const ocrRoleSelect = document.getElementById('ocrRoleChannelSelect');
+        const ocrCurrentValue = ocrRoleSelect.value;
+        ocrRoleSelect.innerHTML = '<option value="">Select a channel...</option>' + 
+          (config.channels || []).map(c => `<option value="${c.id}">#${c.channelName || c.id}</option>`).join('');
+        ocrRoleSelect.value = ocrCurrentValue;
+        
+        window.currentAllowedRoles = config.allowedRoles || {};
+        window.currentOcrRoles = config.ocrRoles || {};
+        showRoleManagement();
+        showOcrRoleManagement();
+      } catch (e) {
+        console.error('Failed to fetch config:', e);
+      }
+    }
+
+    function renderChannels(channels) {
+      const list = document.getElementById('channelList');
+      if (channels.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-inbox"></i></div>No channels configured</div>';
+        return;
+      }
+      list.innerHTML = channels.map(c => `
+        <div class="channel-item">
+          <div class="info">
+            <span class="channel-name">
+              <i class="fas fa-hashtag"></i> ${c.channelName || 'Unknown'}
+              <span class="channel-id" title="Channel ID: ${c.id}" onclick="copyToClipboard('${c.id}')">${c.id}</span>
+            </span>
+            <span class="guild-name"><i class="fas fa-server"></i> ${c.guildName || 'Unknown Server'}</span>
+            <span class="language"><i class="fas fa-arrow-right"></i> ${c.language}</span>
+          </div>
+          <div class="actions">
+            <button class="btn btn-sm ${c.enabled === false ? 'btn-success' : 'btn-danger'}" 
+              onclick="toggleChannel('${c.id}')">${c.enabled === false ? 'Enable' : 'Disable'}</button>
+            <button class="btn btn-sm btn-danger" onclick="removeChannel('${c.id}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderLogs(logs) {
+      const list = document.getElementById('logList');
+      if (logs.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-clipboard"></i></div>No activity yet</div>';
+        return;
+      }
+      list.innerHTML = logs.map(l => `
+        <div class="log-item ${l.type}">
+          <span class="time">${new Date(l.time).toLocaleTimeString()}</span>
+          <span class="type ${l.type}">${l.type}</span>
+          <span class="msg">${l.message}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderHistory(history) {
+      const list = document.getElementById('historyList');
+      if (history.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-sync"></i></div>No translations yet</div>';
+        return;
+      }
+      list.innerHTML = history.map(h => `
+        <div class="history-item">
+          <div class="header">
+            <span class="meta">
+              <span class="channel"><i class="fas fa-hashtag"></i> ${h.channel}</span>
+              <span class="author"><i class="fas fa-user"></i> ${h.author}</span>
+            </span>
+            <span class="meta">${new Date(h.time).toLocaleString()}</span>
+          </div>
+          <div class="content">
+            <div class="original"><strong>Original:</strong> ${h.original.length > 80 ? h.original.slice(0, 80) + '...' : h.original}</div>
+            <div class="translated"><span class="label">→ ${h.language}:</span> ${h.translation.length > 80 ? h.translation.slice(0, 80) + '...' : h.translation}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderChannelSettings(channels) {
+      const list = document.getElementById('channelSettings');
+      if (channels.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-cog"></i></div>No channels configured</div>';
+        return;
+      }
+      list.innerHTML = channels.map(c => `
+        <div class="channel-item">
+          <div class="info">
+            <span class="channel-name">
+              <i class="fas fa-hashtag"></i> ${c.channelName || 'Unknown'}
+              <span class="channel-id" title="Channel ID: ${c.id}" onclick="copyToClipboard('${c.id}')">${c.id}</span>
+            </span>
+            <span class="guild-name"><i class="fas fa-server"></i> ${c.guildName || 'Unknown Server'}</span>
+            <div class="badges">
+              <span class="status-badge ${c.enabled !== false ? 'enabled' : 'disabled'}">${c.enabled !== false ? 'Active' : 'Paused'}</span>
+              <span class="status-badge ${c.enableOcr ? 'ocr-on' : 'ocr-off'}">OCR ${c.enableOcr ? 'ON' : 'OFF'}</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-sm ${c.enableOcr ? 'btn-danger' : 'btn-success'}" 
+              onclick="toggleOcr('${c.id}')"><i class="fas fa-eye"></i> OCR</button>
+            <button class="btn btn-sm ${c.enabled === false ? 'btn-success' : 'btn-danger'}" 
+              onclick="toggleChannel('${c.id}')">${c.enabled === false ? 'Enable' : 'Disable'}</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderIgnoredUsers(users) {
+      const list = document.getElementById('ignoredList');
+      if (!users || users.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-user"></i></div>No ignored users</div>';
+        return;
+      }
+      list.innerHTML = users.map(userId => `
+        <div class="ignored-item">
+          <span class="user-id">${userId}</span>
+          <button class="btn btn-sm btn-danger" onclick="removeIgnoredUser('${userId}')"><i class="fas fa-trash"></i></button>
+        </div>
+      `).join('');
+    }
+
+    async function addChannel() {
+      const channelId = document.getElementById('channelId').value;
+      const channelName = document.getElementById('channelName').value;
+      const language = document.getElementById('language').value;
+      
+      if (!channelId || !channelName || !language) {
+        showToast('Please fill all fields', 'error');
+        return;
+      }
+      
+      await fetch('/api/channels', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ channelId, channelName, language, guildId: '0' })
+      });
+      
+      document.getElementById('channelId').value = '';
+      document.getElementById('channelName').value = '';
+      document.getElementById('language').value = '';
+      
+      showToast('Channel added successfully', 'success');
+      fetchAll();
+    }
+
+    async function removeChannel(channelId) {
+      if (!confirm('Remove this channel?')) return;
+      try {
+        const res = await fetch(`/api/channels/${channelId}`, { method: 'DELETE', headers: getHeaders() });
+        if (res.ok) {
+          showToast('Channel removed', 'info');
+          fetchAll();
+        } else {
+          const err = await res.json();
+          showToast(err.error || 'Failed to remove channel', 'error');
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+      }
+    }
+
+    async function toggleChannel(channelId) {
+      try {
+        const res = await fetch(`/api/status`);
+        const data = await res.json();
+        const channel = data.channels.find(c => c.id === channelId);
+        if (channel) {
+          const newEnabled = !(channel.enabled !== false);
+          const putRes = await fetch(`/api/channels/${channelId}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify({ enabled: newEnabled })
+          });
+          if (putRes.ok) {
+            showToast(`Channel ${newEnabled ? 'enabled' : 'disabled'}`, 'success');
+            fetchAll();
+          } else {
+            const err = await putRes.json();
+            showToast(err.error || 'Failed to update channel', 'error');
+          }
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+      }
+    }
+
+    async function toggleOcr(channelId) {
+      try {
+        const res = await fetch(`/api/status`);
+        const data = await res.json();
+        const channel = data.channels.find(c => c.id === channelId);
+        if (channel) {
+          const newOcr = !channel.enableOcr;
+          const putRes = await fetch(`/api/channels/${channelId}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify({ enableOcr: newOcr })
+          });
+          if (putRes.ok) {
+            showToast(`OCR ${newOcr ? 'enabled' : 'disabled'}`, 'success');
+            fetchAll();
+          } else {
+            const err = await putRes.json();
+            showToast(err.error || 'Failed to update OCR', 'error');
+          }
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+      }
+    }
+
+    async function testTranslation() {
+      const text = document.getElementById('testText').value;
+      const language = document.getElementById('testLanguage').value;
+      const resultDiv = document.getElementById('testResult');
+      
+      if (!text.trim()) {
+        showToast('Please enter text to translate', 'error');
+        return;
+      }
+      
+      resultDiv.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+      
+      try {
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ text, language })
+        });
+        const data = await res.json();
+        
+        if (data.error) {
+          resultDiv.innerHTML = `<div class="test-result"><div class="text error">Error: ${data.error}</div></div>`;
+          showToast('Translation failed', 'error');
+        } else {
+          resultDiv.innerHTML = `
+            <div class="test-result">
+              <div class="label">Original</div>
+              <div class="text">${data.original}</div>
+              <div class="label" style="margin-top: 12px;">Translated (${data.language})</div>
+              <div class="text">${data.translation}</div>
+            </div>
+          `;
+          showToast('Translation complete', 'success');
+        }
+      } catch (e) {
+        resultDiv.innerHTML = `<div class="test-result"><div class="text error">Error: ${e.message}</div></div>`;
+        showToast('Translation failed', 'error');
+      }
+    }
+
+    function showRoleManagement() {
+      const channelId = document.getElementById('roleChannelSelect').value;
+      const container = document.getElementById('roleManagement');
+      
+      if (!channelId) {
+        container.innerHTML = '<div class="empty-state">Select a channel to manage roles</div>';
+        return;
+      }
+      
+      const roles = window.currentAllowedRoles?.[channelId] || [];
+      
+      if (roles.length === 0) {
+        container.innerHTML = '<div class="empty-state">No roles configured. Translation is open to all users.</div>';
+        return;
+      }
+      
+      container.innerHTML = roles.map(r => `
+        <div class="ignored-item">
+          <span class="user-id">${r.name || r.id}</span>
+          <button class="btn btn-sm btn-danger" onclick="removeRole('${channelId}', '${r.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      `).join('');
+    }
+
+    async function addRole() {
+      const channelId = document.getElementById('roleChannelSelect').value;
+      const roleId = document.getElementById('roleId').value;
+      const roleName = document.getElementById('roleName').value;
+      
+      if (!channelId) { showToast('Please select a channel first', 'error'); return; }
+      if (!roleId) { showToast('Please enter a role ID', 'error'); return; }
+      
+      await fetch(`/api/roles/${channelId}`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ roleId, roleName })
+      });
+      
+      document.getElementById('roleId').value = '';
+      document.getElementById('roleName').value = '';
+      
+      showToast('Role added', 'success');
+      fetchConfig();
+    }
+
+    async function removeRole(channelId, roleId) {
+      await fetch(`/api/roles/${channelId}/${roleId}`, { method: 'DELETE', headers: getHeaders() });
+      showToast('Role removed', 'info');
+      fetchConfig();
+    }
+
+    function showOcrRoleManagement() {
+      const channelId = document.getElementById('ocrRoleChannelSelect').value;
+      const container = document.getElementById('ocrRoleManagement');
+      
+      if (!channelId) {
+        container.innerHTML = '<div class="empty-state">Select a channel to manage OCR roles</div>';
+        return;
+      }
+      
+      const roles = window.currentOcrRoles?.[channelId] || [];
+      
+      if (roles.length === 0) {
+        container.innerHTML = '<div class="empty-state">No OCR roles configured. Anyone in OCR-enabled channels can use OCR.</div>';
+        return;
+      }
+      
+      container.innerHTML = roles.map(r => `
+        <div class="ignored-item">
+          <span class="user-id">${r.name || r.id}</span>
+          <button class="btn btn-sm btn-danger" onclick="removeOcrRole('${channelId}', '${r.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      `).join('');
+    }
+
+    async function addOcrRole() {
+      const channelId = document.getElementById('ocrRoleChannelSelect').value;
+      const roleId = document.getElementById('ocrRoleId').value;
+      const roleName = document.getElementById('ocrRoleName').value;
+      
+      if (!channelId) { showToast('Please select a channel first', 'error'); return; }
+      if (!roleId) { showToast('Please enter a role ID', 'error'); return; }
+      
+      await fetch(`/api/ocr-roles/${channelId}`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ roleId, roleName })
+      });
+      
+      document.getElementById('ocrRoleId').value = '';
+      document.getElementById('ocrRoleName').value = '';
+      
+      showToast('OCR role added', 'success');
+      fetchConfig();
+    }
+
+    async function removeOcrRole(channelId, roleId) {
+      await fetch(`/api/ocr-roles/${channelId}/${roleId}`, { method: 'DELETE', headers: getHeaders() });
+      showToast('OCR role removed', 'info');
+      fetchConfig();
+    }
+
+    async function addIgnoredUser() {
+      const userId = document.getElementById('ignoreUserId').value;
+      if (!userId) { showToast('Please enter a user ID', 'error'); return; }
+      await fetch(`/api/ignore/${userId}`, { method: 'POST', headers: getHeaders() });
+      document.getElementById('ignoreUserId').value = '';
+      showToast('User ignored', 'success');
+      fetchConfig();
+    }
+
+    async function removeIgnoredUser(userId) {
+      await fetch(`/api/ignore/${userId}`, { method: 'DELETE', headers: getHeaders() });
+      showToast('User removed from ignore list', 'info');
+      fetchConfig();
+    }
+
+    async function fetchSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        window.appSettings = data;
+        document.getElementById('debugToggle').checked = data.showDebug;
+        document.getElementById('logChannelStatus').textContent = data.logChannel ? `Current: ${data.logChannel}` : 'Current: Not set';
+        document.getElementById('debugLogChannelStatus').textContent = data.debugLogChannel ? `Current: ${data.debugLogChannel}` : 'Current: Not set';
+        document.getElementById('modelStatus').textContent = `Current: ${data.model || 'gemma3'}`;
+      } catch (e) {
+        console.error('Failed to fetch settings:', e);
+      }
+    }
+
+    async function fetchModels() {
+      try {
+        const res = await fetch('/api/models');
+        const data = await res.json();
+        const select = document.getElementById('modelSelect');
+        
+        if (data.models && data.models.length > 0) {
+          select.innerHTML = '<option value="">-- Select Translation Model --</option>' + 
+            data.models.map(m => 
+              `<option value="${m}" ${m === data.current ? 'selected' : ''}>${m}</option>`
+            ).join('');
+          document.getElementById('modelStatus').textContent = `Current: ${data.current}`;
+        } else {
+          select.innerHTML = '<option value="">No models available</option>';
+        }
+        
+        // OCR Model
+        const ocrSelect = document.getElementById('ocrModelSelect');
+        if (data.models && data.models.length > 0) {
+          ocrSelect.innerHTML = '<option value="">-- Use Translation Model --</option>' + 
+            data.models.map(m => 
+              `<option value="${m}" ${m === data.ocrCurrent ? 'selected' : ''}>${m}</option>`
+            ).join('');
+          const ocrStatus = data.ocrCurrent === data.current || !data.ocrCurrent 
+            ? 'Default (same as translation)' 
+            : data.ocrCurrent;
+          document.getElementById('ocrModelStatus').textContent = `Current: ${ocrStatus}`;
+        } else {
+          ocrSelect.innerHTML = '<option value="">No models available</option>';
+        }
+      } catch (e) {
+        console.error('Failed to fetch models:', e);
+        document.getElementById('modelSelect').innerHTML = '<option value="">Failed to load models</option>';
+        document.getElementById('ocrModelSelect').innerHTML = '<option value="">Failed to load models</option>';
+      }
+    }
+
+    async function refreshModels() {
+      showToast('Refreshing models...', 'info');
+      await fetchModels();
+      showToast('Models refreshed', 'success');
+    }
+
+    async function changeModel() {
+      const model = document.getElementById('modelSelect').value;
+      if (!model) return;
+      
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: getHeaders(),
+          body: JSON.stringify({ model })
+        });
+        const data = await res.json();
+        document.getElementById('modelStatus').textContent = `Current: ${data.model}`;
+        showToast(`Model changed to: ${model}`, 'success');
+      } catch (e) {
+        showToast('Failed to change model', 'error');
+      }
+    }
+
+    async function changeOcrModel() {
+      const model = document.getElementById('ocrModelSelect').value;
+      
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: getHeaders(),
+          body: JSON.stringify({ ocrModel: model })
+        });
+        const data = await res.json();
+        const ocrStatus = data.ocrModel === data.model || !data.ocrModel 
+          ? 'Default (same as translation)' 
+          : data.ocrModel;
+        document.getElementById('ocrModelStatus').textContent = `Current: ${ocrStatus}`;
+        showToast(model ? `OCR model changed to: ${model}` : 'OCR model reset to default', 'success');
+      } catch (e) {
+        showToast('Failed to change OCR model', 'error');
+      }
+    }
+
+    async function toggleDebug() {
+      const showDebug = document.getElementById('debugToggle').checked;
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ showDebug })
+      });
+      window.appSettings = window.appSettings || {};
+      window.appSettings.showDebug = showDebug;
+      showToast(showDebug ? 'Debug mode enabled' : 'Debug mode disabled', 'info');
+    }
+
+    async function setLogChannel() {
+      const channelId = document.getElementById('logChannelId').value;
+      if (!channelId) { showToast('Please enter a channel ID', 'error'); return; }
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ logChannel: channelId })
+      });
+      document.getElementById('logChannelStatus').textContent = `Current: ${channelId}`;
+      document.getElementById('logChannelId').value = '';
+      showToast('Log channel set', 'success');
+    }
+
+    async function removeLogChannel() {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ logChannel: null })
+      });
+      document.getElementById('logChannelStatus').textContent = 'Current: Not set';
+      showToast('Log channel removed', 'info');
+    }
+
+    async function setDebugLogChannel() {
+      const channelId = document.getElementById('debugLogChannelId').value;
+      if (!channelId) { showToast('Please enter a channel ID', 'error'); return; }
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ debugLogChannel: channelId })
+      });
+      document.getElementById('debugLogChannelStatus').textContent = `Current: ${channelId}`;
+      document.getElementById('debugLogChannelId').value = '';
+      showToast('Debug log channel set', 'success');
+    }
+
+    async function removeDebugLogChannel() {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ debugLogChannel: null })
+      });
+      document.getElementById('debugLogChannelStatus').textContent = 'Current: Not set';
+      showToast('Debug log channel removed', 'info');
+    }
+
+    async function fetchAdminRoles() {
+      try {
+        const res = await fetch('/api/admin-roles');
+        const data = await res.json();
+        renderAdminRoles(data.adminRoles || []);
+      } catch (e) {
+        console.error('Failed to fetch admin roles:', e);
+      }
+    }
+
+    function renderAdminRoles(roles) {
+      const list = document.getElementById('adminRolesList');
+      if (!roles || roles.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-lock"></i></div>No admin roles configured</div>';
+        return;
+      }
+      list.innerHTML = roles.map(r => `
+        <div class="ignored-item">
+          <span class="user-id">${r.name || r.id}</span>
+          <button class="btn btn-sm btn-danger" onclick="removeAdminRole('${r.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      `).join('');
+    }
+
+    async function addAdminRole() {
+      const roleId = document.getElementById('adminRoleId').value;
+      const roleName = document.getElementById('adminRoleName').value;
+      if (!roleId) { showToast('Please enter a role ID', 'error'); return; }
+      await fetch('/api/admin-roles', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ roleId, roleName })
+      });
+      document.getElementById('adminRoleId').value = '';
+      document.getElementById('adminRoleName').value = '';
+      showToast('Admin role added', 'success');
+      fetchAdminRoles();
+    }
+
+    async function removeAdminRole(roleId) {
+      await fetch(`/api/admin-roles/${roleId}`, { method: 'DELETE', headers: getHeaders() });
+      showToast('Admin role removed', 'info');
+      fetchAdminRoles();
+    }
+
+    function fetchAll() {
+      fetchStatus();
+      fetchStats();
+      fetchLogs();
+      fetchHistory();
+      fetchConfig();
+      fetchAdminRoles();
+      fetchSettings();
+      fetchModels();
+    }
+
+    loadTheme();
+    fetchAll();
+    setInterval(fetchAll, 5000);
+  </script>
+</body>
+</html>

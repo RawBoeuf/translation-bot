@@ -1,0 +1,28 @@
+{
+  "channels": {
+    "1049090386846548041": {
+      "language": "Spanish",
+      "guildId": "1049090386846548038",
+      "enabled": true,
+      "enableOcr": true
+    },
+    "1473487482862440609": {
+      "language": "Polish",
+      "guildId": "773599040037322752",
+      "enableOcr": true
+    },
+    "1473507267675684996": {
+      "language": "English",
+      "guildId": "773599040037322752",
+      "enableOcr": true
+    }
+  },
+  "ignoredUsers": [],
+  "allowedRoles": {},
+  "ocrRoles": {},
+  "adminRoles": [],
+  "logChannel": null,
+  "debugLogChannel": null,
+  "model": "gemma3:latest",
+  "ocrModel": "ministral-3:latest"
+}
