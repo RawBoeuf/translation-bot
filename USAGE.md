@@ -196,6 +196,8 @@ The dashboard requires an API key to modify settings:
 
 1. **Enter API Key**: Type your API key in the top-right input field
 2. **Default Key**: `translation-bot-secret` (set via `DASHBOARD_API_KEY` in `.env`)
+
+> **Security:** Change the default `DASHBOARD_API_KEY` before deploying. The default key is publicly known and should only be used for local development.
 3. **Admin Settings Tab**: View and manage admin roles
 
 **Without API Key**: You can view status, history, and stats but cannot modify any settings.
