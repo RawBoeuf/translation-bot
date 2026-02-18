@@ -24,5 +24,8 @@
   "logChannel": null,
   "debugLogChannel": null,
   "model": "gemma3:latest",
-  "ocrModel": "ministral-3:latest"
+  "ocrModel": "ministral-3:latest",
+  "aiProvider": "ollama",
+  "aiApiKey": "",
+  "aiBaseUrl": ""
 }

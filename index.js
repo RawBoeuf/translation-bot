@@ -11,7 +11,17 @@ const OLLAMA_URL = 'http://localhost:11434/api/generate';
 const DEFAULT_MODEL = 'gemma3';
 const DASHBOARD_PORT = process.env.PORT || 3553;
 const COMMAND_PREFIX = '$';
-const DASHBOARD_API_KEY = process.env.DASHBOARD_API_KEY; // Undefined = no auth required
+const DASHBOARD_API_KEY = process.env.DASHBOARD_API_KEY;
+
+const AI_PROVIDERS = {
+  ollama: { name: 'Ollama (Local)', requiresUrl: true, defaultUrl: 'http://localhost:11434' },
+  openai: { name: 'OpenAI', requiresApiKey: true, baseUrl: 'https://api.openai.com/v1' },
+  anthropic: { name: 'Anthropic (Claude)', requiresApiKey: true, baseUrl: 'https://api.anthropic.com/v1' },
+  google: { name: 'Google AI (Gemini)', requiresApiKey: true, baseUrl: 'https://generativelanguage.googleapis.com/v1' },
+  deepseek: { name: 'DeepSeek', requiresApiKey: true, baseUrl: 'https://api.deepseek.com/v1' },
+  xai: { name: 'xAI (Grok)', requiresApiKey: true, baseUrl: 'https://api.x.ai/v1' },
+  mistral: { name: 'Mistral AI', requiresApiKey: true, baseUrl: 'https://api.mistral.ai/v1' },
+};
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
@@ -25,19 +35,82 @@ const client = new Client({
   ]
 });
 
-let config = { channels: {}, ignoredUsers: [], allowedRoles: {}, ocrRoles: {}, adminRoles: [], logChannel: null, debugLogChannel: null, model: DEFAULT_MODEL, ocrModel: null };
+let config = { 
+  channels: {}, 
+  ignoredUsers: [], 
+  allowedRoles: {}, 
+  ocrRoles: {}, 
+  adminRoles: [], 
+  logChannel: null, 
+  debugLogChannel: null, 
+  model: DEFAULT_MODEL, 
+  ocrModel: null,
+  aiProvider: 'ollama',
+  aiApiKey: '',
+  aiBaseUrl: '',
+  ollamaUrl: 'http://localhost:11434',
+};
 let logs = [];
 let showDebug = false;
 let translationHistory = [];
 let stats = { totalTranslations: 0, languages: {} };
+const startTime = Date.now();
+let statsCache = null;
+let statsCacheTime = 0;
+
+function getSystemStats() {
+  const now = Date.now();
+  if (statsCache && now - statsCacheTime < 5000) {
+    return { ...statsCache, uptime: now - startTime };
+  }
+  
+  const memoryUsage = process.memoryUsage();
+  statsCache = {
+    ...stats,
+    memory: {
+      rss: Math.round(memoryUsage.rss / 1024 / 1024),
+      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024)
+    }
+  };
+  statsCacheTime = now;
+  return { ...statsCache, uptime: now - startTime };
+}
 
 function loadConfig() {
   if (fs.existsSync(CONFIG_FILE)) {
     try {
       const loaded = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-      config = { channels: {}, ignoredUsers: [], allowedRoles: {}, ocrRoles: {}, adminRoles: [], logChannel: null, debugLogChannel: null, model: DEFAULT_MODEL, ocrModel: null, ...loaded };
+      config = { 
+        channels: {}, 
+        ignoredUsers: [], 
+        allowedRoles: {}, 
+        ocrRoles: {}, 
+        adminRoles: [], 
+        logChannel: null, 
+        debugLogChannel: null, 
+        model: DEFAULT_MODEL, 
+        ocrModel: null,
+        aiProvider: 'ollama',
+        aiApiKey: '',
+        aiBaseUrl: '',
+        ...loaded 
+      };
     } catch (e) {
-      config = { channels: {}, ignoredUsers: [], allowedRoles: {}, ocrRoles: {}, adminRoles: [], logChannel: null, debugLogChannel: null, model: DEFAULT_MODEL, ocrModel: null };
+      config = { 
+        channels: {}, 
+        ignoredUsers: [], 
+        allowedRoles: {}, 
+        ocrRoles: {}, 
+        adminRoles: [], 
+        logChannel: null, 
+        debugLogChannel: null, 
+        model: DEFAULT_MODEL, 
+        ocrModel: null,
+        aiProvider: 'ollama',
+        aiApiKey: '',
+        aiBaseUrl: '',
+      };
     }
   }
 }
@@ -50,8 +123,131 @@ function getOcrModel() {
   return config.ocrModel || config.model || DEFAULT_MODEL;
 }
 
+function getAiProvider() {
+  return config.aiProvider || 'ollama';
+}
+
+function getAiConfig() {
+  const provider = getAiProvider();
+  const baseUrl = provider === 'ollama' 
+    ? (config.ollamaUrl || 'http://localhost:11434')
+    : (config.aiBaseUrl || AI_PROVIDERS[provider]?.defaultUrl || '');
+  return {
+    provider,
+    apiKey: config.aiApiKey || '',
+    baseUrl,
+    model: getModel()
+  };
+}
+
+async function checkAiStatus() {
+  const provider = getAiProvider();
+  
+  if (provider === 'ollama') {
+    try {
+      const response = await axios.get(`${config.ollamaUrl || 'http://localhost:11434'}/api/tags`, { timeout: 5000 });
+      const models = response.data.models || [];
+      return { available: true, provider, models, status: 'online' };
+    } catch (error) {
+      return { available: false, provider, error: error.message, status: 'offline' };
+    }
+  }
+  
+  if (!config.aiApiKey) {
+    return { available: false, provider, error: 'API key not configured', status: 'offline' };
+  }
+  
+  return { available: true, provider, status: 'configured' };
+}
+
+let configSaveTimeout = null;
 function saveConfig() {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  if (configSaveTimeout) return;
+  configSaveTimeout = setTimeout(() => {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    configSaveTimeout = null;
+  }, 100);
+}
+
+const discordCache = new Map();
+const CACHE_TTL = 60000;
+
+function getCachedDiscordData(key, fetchFn) {
+  const cached = discordCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  const data = fetchFn();
+  discordCache.set(key, { data, timestamp: Date.now() });
+  return data;
+}
+
+async function getCachedChannelName(guildId, channelId) {
+  const key = `channel:${guildId}:${channelId}`;
+  const cached = discordCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  try {
+    const guild = client.guilds.cache.get(guildId);
+    if (guild) {
+      const channel = await guild.channels.fetch(channelId);
+      const data = channel ? channel.name : null;
+      discordCache.set(key, { data, timestamp: Date.now() });
+      return data;
+    }
+  } catch (e) { }
+  return null;
+}
+
+async function getCachedGuildName(guildId) {
+  const key = `guild:${guildId}`;
+  const cached = discordCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  const guild = client.guilds.cache.get(guildId);
+  if (guild) {
+    discordCache.set(key, { data: guild.name, timestamp: Date.now() });
+    return guild.name;
+  }
+  return null;
+}
+
+async function getCachedUserInfo(userId) {
+  const key = `user:${userId}`;
+  const cached = discordCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  try {
+    const user = await client.users.fetch(userId);
+    if (user) {
+      const data = { username: user.tag || user.username || userId, avatar: user.displayAvatarURL({ size: 32 }) };
+      discordCache.set(key, { data, timestamp: Date.now() });
+      return data;
+    }
+  } catch (e) { }
+  return null;
+}
+
+async function getCachedRoleName(guildId, roleId) {
+  const key = `role:${guildId}:${roleId}`;
+  const cached = discordCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  try {
+    const guild = client.guilds.cache.get(guildId);
+    if (guild) {
+      const role = await guild.roles.fetch(roleId);
+      if (role) {
+        discordCache.set(key, { data: role.name, timestamp: Date.now() });
+        return role.name;
+      }
+    }
+  } catch (e) { }
+  return null;
 }
 
 function addLog(type, message) {
@@ -99,24 +295,17 @@ function addDebug(message) {
 }
 
 app.get('/api/status', async (req, res) => {
-  const ollamaStatus = await checkOllamaStatus();
+  const ollamaStatus = await checkAiStatus();
   
   const channelsWithGuilds = await Promise.all(Object.entries(config.channels).map(async ([id, data]) => {
     let guildName = 'Unknown Server';
     let channelName = data.channelName || 'Unknown';
     
     if (data.guildId && client.guilds.cache.has(data.guildId)) {
-      const guild = client.guilds.cache.get(data.guildId);
-      guildName = guild.name;
+      guildName = await getCachedGuildName(data.guildId) || 'Unknown Server';
       
-      // Try to fetch channel name from Discord if not stored
       if (!data.channelName) {
-        try {
-          const channel = await guild.channels.fetch(id);
-          if (channel) channelName = channel.name;
-        } catch (e) {
-          // Channel not found or inaccessible
-        }
+        channelName = await getCachedChannelName(data.guildId, id) || 'Unknown';
       }
     }
     
@@ -134,8 +323,19 @@ app.get('/api/logs', (req, res) => {
   res.json(logs.slice(0, 50));
 });
 
-app.post('/api/channels', requireAdmin, (req, res) => {
-  const { channelId, channelName, language, guildId } = req.body;
+app.post('/api/channels', requireAdmin, async (req, res) => {
+  const { channelId, language, guildId } = req.body;
+  
+  let channelName = channelId;
+  try {
+    const channel = await client.channels.fetch(channelId);
+    if (channel) {
+      channelName = channel.name;
+    }
+  } catch (e) {
+    console.error('Failed to fetch channel name:', e.message);
+  }
+  
   config.channels[channelId] = { language, guildId, channelName };
   saveConfig();
   addLog('info', `Added translation channel: #${channelName} → ${language}`);
@@ -195,7 +395,7 @@ app.post('/api/ocr-translate', async (req, res) => {
   }
   try {
     const extractedText = await extractTextFromImage(image);
-    const translation = await translateWithOllama(extractedText, language);
+    const translation = await translateWithAi(extractedText, language);
     res.json({ extractedText, translation, language });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -223,7 +423,7 @@ app.post('/api/translate', async (req, res) => {
     return res.status(400).json({ error: 'Text and language required' });
   }
   try {
-    const translation = await translateWithOllama(text, language);
+    const translation = await translateWithAi(text, language);
     res.json({ original: text, translation, language });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -235,28 +435,39 @@ app.get('/api/history', (req, res) => {
 });
 
 app.get('/api/stats', (req, res) => {
-  res.json(stats);
+  res.json(getSystemStats());
 });
 
-app.get('/api/config', (req, res) => {
-  const channelsWithGuilds = Object.entries(config.channels).map(([id, data]) => {
+app.get('/api/config', async (req, res) => {
+  const channelsWithGuilds = await Promise.all(Object.entries(config.channels).map(async ([id, data]) => {
     let guildName = 'Unknown Server';
     let channelName = data.channelName || 'Unknown';
     
     if (data.guildId && client.guilds.cache.has(data.guildId)) {
-      const guild = client.guilds.cache.get(data.guildId);
-      guildName = guild.name;
+      guildName = await getCachedGuildName(data.guildId) || 'Unknown Server';
+      
+      if (!data.channelName) {
+        channelName = await getCachedChannelName(data.guildId, id) || 'Unknown';
+      }
     }
     
     return { id, ...data, channelName, guildName };
-  });
+  }));
+
+  const ignoredUsersWithInfo = await Promise.all((config.ignoredUsers || []).map(async (userId) => {
+    const userInfo = await getCachedUserInfo(userId);
+    return { id: userId, username: userInfo?.username || userId, avatar: userInfo?.avatar || null };
+  }));
   
   res.json({
-    ignoredUsers: config.ignoredUsers || [],
+    ignoredUsers: ignoredUsersWithInfo,
     allowedRoles: config.allowedRoles || {},
     ocrRoles: config.ocrRoles || [],
     adminRoles: config.adminRoles || [],
-    channels: channelsWithGuilds
+    channels: channelsWithGuilds,
+    aiProvider: config.aiProvider || 'ollama',
+    hasApiKey: !!config.aiApiKey,
+    aiBaseUrl: config.aiBaseUrl || ''
   });
 });
 
@@ -264,15 +475,28 @@ app.get('/api/admin-roles', (req, res) => {
   res.json({ adminRoles: config.adminRoles || [] });
 });
 
-app.post('/api/admin-roles', requireAdmin, (req, res) => {
-  const { roleId, roleName } = req.body;
+app.post('/api/admin-roles', requireAdmin, async (req, res) => {
+  const { roleId, guildId } = req.body;
+  
+  let roleName = roleId;
+  let targetGuildId = guildId;
+  
+  if (!targetGuildId) {
+    const guildIds = Object.values(config.channels).map(c => c.guildId).filter(Boolean);
+    targetGuildId = guildIds[0] || [...client.guilds.cache.keys()][0];
+  }
+  
+  if (targetGuildId && client.guilds.cache.has(targetGuildId)) {
+    roleName = await getCachedRoleName(targetGuildId, roleId) || roleId;
+  }
+  
   if (!config.adminRoles) config.adminRoles = [];
   
   const exists = config.adminRoles.find(r => r.id === roleId);
   if (!exists) {
-    config.adminRoles.push({ id: roleId, name: roleName || roleId });
+    config.adminRoles.push({ id: roleId, name: roleName });
     saveConfig();
-    addLog('info', `Added admin role: ${roleName || roleId}`);
+    addLog('info', `Added admin role: ${roleName}`);
   }
   res.json({ success: true, adminRoles: config.adminRoles });
 });
@@ -287,17 +511,20 @@ app.delete('/api/admin-roles/:roleId', requireAdmin, (req, res) => {
   res.json({ success: true, adminRoles: config.adminRoles || [] });
 });
 
-app.post('/api/ocr-roles/:channelId', requireAdmin, (req, res) => {
+app.post('/api/ocr-roles/:channelId', requireAdmin, async (req, res) => {
   const { channelId } = req.params;
-  const { roleId, roleName } = req.body;
+  const { roleId, guildId } = req.body;
+  
+  let roleName = await getCachedRoleName(guildId, roleId) || roleId;
+  
   if (!config.ocrRoles) config.ocrRoles = {};
   if (!config.ocrRoles[channelId]) config.ocrRoles[channelId] = [];
   
   const exists = config.ocrRoles[channelId].find(r => r.id === roleId);
   if (!exists) {
-    config.ocrRoles[channelId].push({ id: roleId, name: roleName || roleId });
+    config.ocrRoles[channelId].push({ id: roleId, name: roleName });
     saveConfig();
-    addLog('info', `Added OCR role: ${roleName || roleId}`);
+    addLog('info', `Added OCR role: ${roleName}`);
   }
   res.json({ success: true });
 });
@@ -312,17 +539,20 @@ app.delete('/api/ocr-roles/:channelId/:roleId', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/roles/:channelId', requireAdmin, (req, res) => {
+app.post('/api/roles/:channelId', requireAdmin, async (req, res) => {
   const { channelId } = req.params;
-  const { roleId, roleName } = req.body;
+  const { roleId, guildId } = req.body;
+  
+  let roleName = await getCachedRoleName(guildId, roleId) || roleId;
+  
   if (!config.allowedRoles) config.allowedRoles = {};
   if (!config.allowedRoles[channelId]) config.allowedRoles[channelId] = [];
   
   const exists = config.allowedRoles[channelId].find(r => r.id === roleId);
   if (!exists) {
-    config.allowedRoles[channelId].push({ id: roleId, name: roleName || roleId });
+    config.allowedRoles[channelId].push({ id: roleId, name: roleName });
     saveConfig();
-    addLog('info', `Added allowed role: ${roleName || roleId}`);
+    addLog('info', `Added allowed role: ${roleName}`);
   }
   res.json({ success: true });
 });
@@ -368,7 +598,18 @@ app.get('/api/settings', (req, res) => {
 });
 
 app.put('/api/settings', requireAdmin, (req, res) => {
-  const { showDebug: newShowDebug, logChannel: newLogChannel, debugLogChannel: newDebugLogChannel, model: newModel, ocrModel: newOcrModel } = req.body;
+  const { 
+    showDebug: newShowDebug, 
+    logChannel: newLogChannel, 
+    debugLogChannel: newDebugLogChannel, 
+    model: newModel, 
+    ocrModel: newOcrModel,
+    aiProvider: newAiProvider,
+    aiApiKey: newAiApiKey,
+    aiBaseUrl: newAiBaseUrl,
+    ollamaUrl: newOllamaUrl
+  } = req.body;
+  
   if (newShowDebug !== undefined) showDebug = newShowDebug;
   if (newLogChannel !== undefined) {
     config.logChannel = newLogChannel;
@@ -390,17 +631,73 @@ app.put('/api/settings', requireAdmin, (req, res) => {
     saveConfig();
     addLog('info', newOcrModel ? `OCR model changed to: ${newOcrModel}` : 'OCR model reset to default');
   }
-  res.json({ success: true, showDebug, logChannel: config.logChannel, debugLogChannel: config.debugLogChannel, model: getModel(), ocrModel: getOcrModel() });
+  if (newAiProvider !== undefined) {
+    config.aiProvider = newAiProvider;
+    saveConfig();
+    addLog('info', `AI provider changed to: ${newAiProvider}`);
+  }
+  if (newAiApiKey !== undefined) {
+    config.aiApiKey = newAiApiKey;
+    saveConfig();
+    addLog('info', newAiApiKey ? 'API key updated' : 'API key cleared');
+  }
+  if (newAiBaseUrl !== undefined) {
+    config.aiBaseUrl = newAiBaseUrl;
+    saveConfig();
+    addLog('info', newAiBaseUrl ? `Cloud Base URL updated: ${newAiBaseUrl}` : 'Cloud Base URL cleared');
+  }
+  if (newOllamaUrl !== undefined) {
+    config.ollamaUrl = newOllamaUrl;
+    saveConfig();
+    addLog('info', newOllamaUrl ? `Ollama URL updated: ${newOllamaUrl}` : 'Ollama URL reset to default');
+  }
+  
+  res.json({ 
+    success: true, 
+    showDebug, 
+    logChannel: config.logChannel, 
+    debugLogChannel: config.debugLogChannel, 
+    model: getModel(), 
+    ocrModel: getOcrModel(),
+    aiProvider: config.aiProvider,
+    hasApiKey: !!config.aiApiKey,
+    aiBaseUrl: config.aiBaseUrl,
+    ollamaUrl: config.ollamaUrl
+  });
 });
 
 app.get('/api/models', async (req, res) => {
-  try {
-    const response = await axios.get('http://localhost:11434/api/tags');
-    const models = response.data.models || [];
-    res.json({ models: models.map(m => m.name), current: getModel(), ocrCurrent: getOcrModel() });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch models from Ollama', available: false });
+  const provider = getAiProvider();
+  
+  if (provider === 'ollama') {
+    const baseUrl = config.ollamaUrl || 'http://localhost:11434';
+    try {
+      const response = await axios.get(`${baseUrl}/api/tags`);
+      const models = response.data.models || [];
+      res.json({ provider, models: models.map(m => m.name), current: getModel(), ocrCurrent: getOcrModel() });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch models from Ollama', available: false, provider });
+    }
+    return;
   }
+  
+  const providerInfo = AI_PROVIDERS[provider];
+  const knownModels = {
+    openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+    anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+    google: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-pro'],
+    deepseek: ['deepseek-chat', 'deepseek-coder'],
+    xai: ['grok-2-1212', 'grok-2', 'grok-beta'],
+    mistral: ['mistral-large-latest', 'mistral-small-latest', 'mistral-medium-latest']
+  };
+  
+  res.json({ 
+    provider, 
+    models: knownModels[provider] || [], 
+    current: getModel(), 
+    ocrCurrent: getOcrModel(),
+    requiresApiKey: providerInfo?.requiresApiKey || false
+  });
 });
 
 async function sendToLogChannel(embed, isDebug = false) {
@@ -416,12 +713,51 @@ async function sendToLogChannel(embed, isDebug = false) {
   }
 }
 
-async function translateWithOllama(text, targetLanguage) {
+async function translateWithAi(text, targetLanguage) {
+  const provider = getAiProvider();
+  const aiConfig = getAiConfig();
   const prompt = `Translate the following message to ${targetLanguage}. Only respond with the translation, nothing else:\n\n${text}`;
   
   try {
-    const response = await axios.post(OLLAMA_URL, {
-      model: getModel(),
+    switch (provider) {
+      case 'ollama':
+        return await translateWithAi(text, targetLanguage, aiConfig);
+      
+      case 'openai':
+        return await translateWithOpenAI(text, targetLanguage, aiConfig);
+      
+      case 'anthropic':
+        return await translateWithAnthropic(text, targetLanguage, aiConfig);
+      
+      case 'google':
+        return await translateWithGoogle(text, targetLanguage, aiConfig);
+      
+      case 'deepseek':
+        return await translateWithDeepSeek(text, targetLanguage, aiConfig);
+      
+      case 'xai':
+        return await translateWithXAI(text, targetLanguage, aiConfig);
+      
+      case 'mistral':
+        return await translateWithMistral(text, targetLanguage, aiConfig);
+      
+      default:
+        return await translateWithAi(text, targetLanguage, aiConfig);
+    }
+  } catch (error) {
+    console.error(`Translation error (${provider}):`, error.message);
+    addLog('error', `Translation failed: ${error.message}`);
+    throw error;
+  }
+}
+
+async function translateWithAi(text, targetLanguage, aiConfig) {
+  const baseUrl = aiConfig.baseUrl || 'http://localhost:11434';
+  const prompt = `Translate the following message to ${targetLanguage}. Only respond with the translation, nothing else:\n\n${text}`;
+  
+  try {
+    const response = await axios.post(`${baseUrl}/api/generate`, {
+      model: aiConfig.model,
       prompt: prompt,
       stream: false
     }, {
@@ -431,20 +767,164 @@ async function translateWithOllama(text, targetLanguage) {
     return response.data.response.trim();
   } catch (error) {
     console.error('Ollama translation error:', error.message);
-    addLog('error', `Translation failed: ${error.message}`);
     throw error;
   }
 }
 
-async function checkOllamaStatus() {
-  try {
-    const response = await axios.get('http://localhost:11434/api/tags', { timeout: 5000 });
-    const models = response.data.models || [];
-    const gemmaAvailable = models.some(m => m.name.startsWith('gemma3'));
-    return { available: gemmaAvailable, models };
-  } catch (error) {
-    return { available: false, error: error.message };
+async function translateWithOpenAI(text, targetLanguage, aiConfig) {
+  const response = await axios.post(
+    `${aiConfig.baseUrl}/chat/completions`,
+    {
+      model: aiConfig.model || 'gpt-4o',
+      messages: [
+        { role: 'system', content: `Translate messages to ${targetLanguage}. Only respond with the translation, nothing else.` },
+        { role: 'user', content: text }
+      ],
+      max_tokens: 4096
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${aiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    }
+  );
+  
+  return response.data.choices[0].message.content.trim();
+}
+
+async function translateWithAnthropic(text, targetLanguage, aiConfig) {
+  const response = await axios.post(
+    `${aiConfig.baseUrl}/messages`,
+    {
+      model: aiConfig.model || 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      system: `Translate messages to ${targetLanguage}. Only respond with the translation, nothing else.`,
+      messages: [
+        { role: 'user', content: text }
+      ]
+    },
+    {
+      headers: {
+        'x-api-key': aiConfig.apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    }
+  );
+  
+  return response.data.content[0].text.trim();
+}
+
+async function translateWithGoogle(text, targetLanguage, aiConfig) {
+  const response = await axios.post(
+    `${aiConfig.baseUrl}/models/${aiConfig.model || 'gemini-1.5-pro'}:generateContent?key=${aiConfig.apiKey}`,
+    {
+      contents: [
+        {
+          parts: [{ text: `Translate to ${targetLanguage}. Only respond with translation: ${text}` }]
+        }
+      ]
+    },
+    {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 60000
+    }
+  );
+  
+  return response.data.candidates[0].content.parts[0].text.trim();
+}
+
+async function translateWithDeepSeek(text, targetLanguage, aiConfig) {
+  const response = await axios.post(
+    `${aiConfig.baseUrl}/chat/completions`,
+    {
+      model: aiConfig.model || 'deepseek-chat',
+      messages: [
+        { role: 'system', content: `Translate messages to ${targetLanguage}. Only respond with the translation, nothing else.` },
+        { role: 'user', content: text }
+      ],
+      max_tokens: 4096
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${aiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    }
+  );
+  
+  return response.data.choices[0].message.content.trim();
+}
+
+async function translateWithXAI(text, targetLanguage, aiConfig) {
+  const response = await axios.post(
+    `${aiConfig.baseUrl}/chat/completions`,
+    {
+      model: aiConfig.model || 'grok-2-1212',
+      messages: [
+        { role: 'system', content: `Translate messages to ${targetLanguage}. Only respond with the translation, nothing else.` },
+        { role: 'user', content: text }
+      ],
+      max_tokens: 4096
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${aiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    }
+  );
+  
+  return response.data.choices[0].message.content.trim();
+}
+
+async function translateWithMistral(text, targetLanguage, aiConfig) {
+  const response = await axios.post(
+    `${aiConfig.baseUrl}/chat/completions`,
+    {
+      model: aiConfig.model || 'mistral-large-latest',
+      messages: [
+        { role: 'system', content: `Translate messages to ${targetLanguage}. Only respond with the translation, nothing else.` },
+        { role: 'user', content: text }
+      ],
+      max_tokens: 4096
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${aiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    }
+  );
+  
+  return response.data.choices[0].message.content.trim();
+}
+
+async function checkAiStatus() {
+  const provider = getAiProvider();
+  
+  if (provider === 'ollama') {
+    const baseUrl = config.ollamaUrl || 'http://localhost:11434';
+    try {
+      const response = await axios.get(`${baseUrl}/api/tags`, { timeout: 5000 });
+      const models = response.data.models || [];
+      return { available: true, provider, models, status: 'online' };
+    } catch (error) {
+      return { available: false, provider, error: error.message, status: 'offline' };
+    }
   }
+  
+  if (!config.aiApiKey) {
+    return { available: false, provider, error: 'API key not configured', status: 'offline' };
+  }
+  
+  return { available: true, provider, status: 'configured' };
 }
 
 client.on('clientReady', () => {
@@ -478,7 +958,7 @@ async function registerCommands() {
       )
       .addSubcommand(sub =>
         sub.setName('status')
-          .setDescription('Check bot and Ollama status')
+          .setDescription('Check bot and AI provider status')
       )
       .addSubcommand(sub =>
         sub.setName('logs')
@@ -505,6 +985,11 @@ async function registerCommands() {
         sub.setName('ocrmodel')
           .setDescription('Get or set the OCR model')
           .addStringOption(opt => opt.setName('name').setDescription('Model name (leave empty to see current)'))
+      )
+      .addSubcommand(sub =>
+        sub.setName('provider')
+          .setDescription('Get or set the AI provider')
+          .addStringOption(opt => opt.setName('name').setDescription('Provider: ollama, openai, anthropic, google, deepseek, xai, mistral'))
       )
       .addSubcommand(sub =>
         sub.setName('help')
@@ -574,9 +1059,12 @@ client.on('interactionCreate', async (interaction) => {
     }
     
     if (subcommand === 'status') {
-      const status = await checkOllamaStatus();
+      const status = await checkAiStatus();
+      const provider = getAiProvider();
+      const providerInfo = AI_PROVIDERS[provider];
       let description = `**Bot**: ✅ Running\n`;
-      description += `**Ollama**: ${status.available ? '✅ Available' : '❌ Not available'}\n`;
+      description += `**AI Provider**: ${providerInfo?.name || provider}\n`;
+      description += `**Status**: ${status.available ? '✅ Available' : '❌ Not available'}\n`;
       
       if (status.models) {
         description += `**Models**: ${status.models.map(m => m.name).join(', ')}`;
@@ -647,23 +1135,26 @@ client.on('interactionCreate', async (interaction) => {
     
     if (subcommand === 'model') {
       const modelName = options.getString('name');
+      const provider = getAiProvider();
       
       if (!modelName) {
         const currentModel = getModel();
         try {
-          const response = await axios.get('http://localhost:11434/api/tags');
-          const models = response.data.models || [];
-          const modelList = models.map(m => m.name).join('\n') || 'No models available';
+          const response = await axios.get('http://localhost:3553/api/models');
+          const data = response.data;
+          const modelList = data.models?.join('\n') || 'No models available';
+          const providerNote = provider === 'ollama' ? '' : `\n\nNote: For ${AI_PROVIDERS[provider]?.name || provider}, enter model name manually.`;
           const embed = new EmbedBuilder()
             .setTitle('🤖 Translation Model')
             .setColor(0x5865f2)
             .addFields(
               { name: 'Current Model', value: currentModel, inline: false },
-              { name: 'Available Models', value: modelList, inline: false }
+              { name: 'Provider', value: AI_PROVIDERS[provider]?.name || provider, inline: false },
+              { name: 'Available Models', value: modelList + providerNote, inline: false }
             );
           await interaction.reply({ embeds: [embed] });
         } catch (e) {
-          await interaction.reply(`Current model: **${currentModel}** (Ollama unavailable)`);
+          await interaction.reply(`Current model: **${currentModel}** (Provider: ${AI_PROVIDERS[provider]?.name || provider})`);
         }
         return;
       }
@@ -676,23 +1167,26 @@ client.on('interactionCreate', async (interaction) => {
     
     if (subcommand === 'ocrmodel') {
       const modelName = options.getString('name');
+      const provider = getAiProvider();
       
       if (!modelName) {
         const currentOcrModel = getOcrModel();
         try {
-          const response = await axios.get('http://localhost:11434/api/tags');
-          const models = response.data.models || [];
-          const modelList = models.map(m => m.name).join('\n') || 'No models available';
+          const response = await axios.get('http://localhost:3553/api/models');
+          const data = response.data;
+          const modelList = data.models?.join('\n') || 'No models available';
+          const providerNote = provider === 'ollama' ? '' : `\n\nNote: For ${AI_PROVIDERS[provider]?.name || provider}, enter model name manually.`;
           const embed = new EmbedBuilder()
             .setTitle('📷 OCR Model')
             .setColor(0xf0a500)
             .addFields(
-              { name: 'Current OCR Model', value: currentOcrModel, inline: false },
-              { name: 'Available Models', value: modelList, inline: false }
+              { name: 'Current OCR Model', value: currentOcrModel || 'Default (same as translation)', inline: false },
+              { name: 'Provider', value: AI_PROVIDERS[provider]?.name || provider, inline: false },
+              { name: 'Available Models', value: modelList + providerNote, inline: false }
             );
           await interaction.reply({ embeds: [embed] });
         } catch (e) {
-          await interaction.reply(`Current OCR model: **${currentOcrModel}** (Ollama unavailable)`);
+          await interaction.reply(`Current OCR model: **${currentOcrModel || 'Default'}** (Provider: ${AI_PROVIDERS[provider]?.name || provider})`);
         }
         return;
       }
@@ -701,6 +1195,34 @@ client.on('interactionCreate', async (interaction) => {
       saveConfig();
       addLog('info', `OCR model changed to: ${modelName}`);
       await interaction.reply(`✅ OCR model set to: **${modelName}**`);
+    }
+    
+    if (subcommand === 'provider') {
+      const providerName = options.getString('name');
+      const currentProvider = getAiProvider();
+      const providerInfo = AI_PROVIDERS[currentProvider];
+      
+      if (!providerName) {
+        const embed = new EmbedBuilder()
+          .setTitle('🔌 AI Provider')
+          .setColor(0x5865f2)
+          .addFields(
+            { name: 'Current Provider', value: providerInfo?.name || currentProvider, inline: false },
+            { name: 'Available Providers', value: Object.entries(AI_PROVIDERS).map(([key, val]) => `${key}: ${val.name}`).join('\n'), inline: false }
+          );
+        await interaction.reply({ embeds: [embed] });
+        return;
+      }
+      
+      if (!AI_PROVIDERS[providerName]) {
+        await interaction.reply(`❌ Unknown provider: **${providerName}**\nAvailable: ${Object.keys(AI_PROVIDERS).join(', ')}`);
+        return;
+      }
+      
+      config.aiProvider = providerName;
+      saveConfig();
+      addLog('info', `AI provider changed to: ${providerName}`);
+      await interaction.reply(`✅ AI provider set to: **${AI_PROVIDERS[providerName].name}**`);
     }
     
     if (subcommand === 'help') {
@@ -716,8 +1238,10 @@ client.on('interactionCreate', async (interaction) => {
           { name: '/translate model <name>', value: 'Set the translation model', inline: false },
           { name: '/translate ocrmodel', value: 'Show current and available OCR models', inline: false },
           { name: '/translate ocrmodel <name>', value: 'Set the OCR model', inline: false },
+          { name: '/translate provider', value: 'Show current and available AI providers', inline: false },
+          { name: '/translate provider <name>', value: 'Set the AI provider', inline: false },
           { name: '/translate list', value: 'List all configured channels', inline: false },
-          { name: '/translate status', value: 'Check bot and Ollama status', inline: false },
+          { name: '/translate status', value: 'Check bot and AI provider status', inline: false },
           { name: '/translate logs', value: 'View recent bot logs', inline: false },
           { name: '/translate logchannel #channel', value: 'Set log channel', inline: false },
           { name: '/translate logchannel remove', value: 'Remove log channel', inline: false },
@@ -821,7 +1345,7 @@ client.on('messageCreate', async (message) => {
     
     if (extractedText) {
       addDebug(`Translating OCR text (${extractedText.length} chars) to ${channelConfig.language}`);
-      const ocrTranslation = await translateWithOllama(extractedText, channelConfig.language);
+      const ocrTranslation = await translateWithAi(extractedText, channelConfig.language);
       addDebug(`OCR translation complete: "${ocrTranslation?.slice(0, 50)}..."`);
       fields.push(
         { name: '📷 Extracted Text', value: extractedText.length > 1024 ? extractedText.slice(0, 1021) + '...' : extractedText },
@@ -841,11 +1365,12 @@ client.on('messageCreate', async (message) => {
       
       stats.totalTranslations++;
       stats.languages[channelConfig.language] = (stats.languages[channelConfig.language] || 0) + 1;
+      statsCache = null;
     }
     
     if (contentToTranslate && contentToTranslate.trim()) {
       addDebug(`Translating message text (${contentToTranslate.length} chars) to ${channelConfig.language}`);
-      const textTranslation = await translateWithOllama(contentToTranslate, channelConfig.language);
+      const textTranslation = await translateWithAi(contentToTranslate, channelConfig.language);
       addDebug(`Text translation complete: "${textTranslation?.slice(0, 50)}..."`);
       fields.push(
         { name: 'Original', value: contentToTranslate.length > 1024 ? contentToTranslate.slice(0, 1021) + '...' : contentToTranslate },
@@ -865,6 +1390,7 @@ client.on('messageCreate', async (message) => {
       
       stats.totalTranslations++;
       stats.languages[channelConfig.language] = (stats.languages[channelConfig.language] || 0) + 1;
+      statsCache = null;
     }
     
     const embed = new EmbedBuilder()
@@ -957,9 +1483,12 @@ client.on('messageCreate', async (message) => {
   }
   
   else if (subcommand === 'status') {
-    const status = await checkOllamaStatus();
+    const status = await checkAiStatus();
+    const provider = getAiProvider();
+    const providerInfo = AI_PROVIDERS[provider];
     let description = `**Bot**: ✅ Running\n`;
-    description += `**Ollama**: ${status.available ? '✅ Available' : '❌ Not available'}\n`;
+    description += `**AI Provider**: ${providerInfo?.name || provider}\n`;
+    description += `**Status**: ${status.available ? '✅ Available' : '❌ Not available'}\n`;
     
     if (status.models) {
       description += `**Models**: ${status.models.map(m => m.name).join(', ')}`;
@@ -1049,23 +1578,26 @@ client.on('messageCreate', async (message) => {
   
   else if (subcommand === 'model') {
     const modelName = args[0];
+    const provider = getAiProvider();
     
     if (!modelName) {
       const currentModel = getModel();
       try {
-        const response = await axios.get('http://localhost:11434/api/tags');
-        const models = response.data.models || [];
-        const modelList = models.map(m => m.name).join('\n') || 'No models available';
+        const response = await axios.get('http://localhost:3553/api/models');
+        const data = response.data;
+        const modelList = data.models?.join('\n') || 'No models available';
+        const providerNote = provider === 'ollama' ? '' : `\n\nNote: For ${AI_PROVIDERS[provider]?.name || provider}, enter model name manually.`;
         const embed = new EmbedBuilder()
           .setTitle('🤖 Translation Model')
           .setColor(0x5865f2)
           .addFields(
             { name: 'Current Model', value: currentModel, inline: false },
-            { name: 'Available Models', value: modelList, inline: false }
+            { name: 'Provider', value: AI_PROVIDERS[provider]?.name || provider, inline: false },
+            { name: 'Available Models', value: modelList + providerNote, inline: false }
           );
         await message.reply({ embeds: [embed] });
       } catch (e) {
-        await message.reply(`Current model: **${currentModel}** (Ollama unavailable)`);
+        await message.reply(`Current model: **${currentModel}** (Provider: ${AI_PROVIDERS[provider]?.name || provider})`);
       }
       return;
     }
@@ -1078,23 +1610,26 @@ client.on('messageCreate', async (message) => {
   
   else if (subcommand === 'ocrmodel') {
     const modelName = args[0];
+    const provider = getAiProvider();
     
     if (!modelName) {
       const currentOcrModel = getOcrModel();
       try {
-        const response = await axios.get('http://localhost:11434/api/tags');
-        const models = response.data.models || [];
-        const modelList = models.map(m => m.name).join('\n') || 'No models available';
+        const response = await axios.get('http://localhost:3553/api/models');
+        const data = response.data;
+        const modelList = data.models?.join('\n') || 'No models available';
+        const providerNote = provider === 'ollama' ? '' : `\n\nNote: For ${AI_PROVIDERS[provider]?.name || provider}, enter model name manually.`;
         const embed = new EmbedBuilder()
           .setTitle('📷 OCR Model')
           .setColor(0xf0a500)
           .addFields(
-            { name: 'Current OCR Model', value: currentOcrModel, inline: false },
-            { name: 'Available Models', value: modelList, inline: false }
+            { name: 'Current OCR Model', value: currentOcrModel || 'Default (same as translation)', inline: false },
+            { name: 'Provider', value: AI_PROVIDERS[provider]?.name || provider, inline: false },
+            { name: 'Available Models', value: modelList + providerNote, inline: false }
           );
         await message.reply({ embeds: [embed] });
       } catch (e) {
-        await message.reply(`Current OCR model: **${currentOcrModel}** (Ollama unavailable)`);
+        await message.reply(`Current OCR model: **${currentOcrModel || 'Default'}** (Provider: ${AI_PROVIDERS[provider]?.name || provider})`);
       }
       return;
     }
@@ -1103,6 +1638,34 @@ client.on('messageCreate', async (message) => {
     saveConfig();
     addLog('info', `OCR model changed to: ${modelName}`);
     await message.reply(`✅ OCR model set to: **${modelName}**`);
+  }
+  
+  else if (subcommand === 'provider') {
+    const providerName = args[0]?.toLowerCase();
+    const currentProvider = getAiProvider();
+    const providerInfo = AI_PROVIDERS[currentProvider];
+    
+    if (!providerName) {
+      const embed = new EmbedBuilder()
+        .setTitle('🔌 AI Provider')
+        .setColor(0x5865f2)
+        .addFields(
+          { name: 'Current Provider', value: providerInfo?.name || currentProvider, inline: false },
+          { name: 'Available Providers', value: Object.entries(AI_PROVIDERS).map(([key, val]) => `${key}: ${val.name}`).join('\n'), inline: false }
+        );
+      await message.reply({ embeds: [embed] });
+      return;
+    }
+    
+    if (!AI_PROVIDERS[providerName]) {
+      await message.reply(`❌ Unknown provider: **${providerName}**\nAvailable: ${Object.keys(AI_PROVIDERS).join(', ')}`);
+      return;
+    }
+    
+    config.aiProvider = providerName;
+    saveConfig();
+    addLog('info', `AI provider changed to: ${providerName}`);
+    await message.reply(`✅ AI provider set to: **${AI_PROVIDERS[providerName].name}**`);
   }
   
   else if (subcommand === 'help') {
@@ -1118,8 +1681,10 @@ client.on('messageCreate', async (message) => {
         { name: '$translate model <name>', value: 'Set the translation model', inline: false },
         { name: '$translate ocrmodel', value: 'Show current OCR model', inline: false },
         { name: '$translate ocrmodel <name>', value: 'Set the OCR model', inline: false },
+        { name: '$translate provider', value: 'Show current and available AI providers', inline: false },
+        { name: '$translate provider <name>', value: 'Set the AI provider', inline: false },
         { name: '$translate list', value: 'List all configured channels', inline: false },
-        { name: '$translate status', value: 'Check bot and Ollama status', inline: false },
+        { name: '$translate status', value: 'Check bot and AI provider status', inline: false },
         { name: '$translate logs', value: 'View recent bot logs', inline: false },
         { name: '$translate logchannel #channel', value: 'Set log channel', inline: false },
         { name: '$translate logchannel remove', value: 'Remove log channel', inline: false },
@@ -1129,7 +1694,7 @@ client.on('messageCreate', async (message) => {
   }
    
   else {
-    await message.reply(`Available commands:\n$translate set #channel <language>\n$translate remove #channel\n$translate ocr enable #channel\n$translate ocr disable #channel\n$translate model\n$translate model <name>\n$translate ocrmodel\n$translate ocrmodel <name>\n$translate list\n$translate status\n$translate logs\n$translate logchannel #channel\n$translate logchannel remove\n$translate help`);
+    await message.reply(`Available commands:\n$translate set #channel <language>\n$translate remove #channel\n$translate ocr enable #channel\n$translate ocr disable #channel\n$translate model\n$translate model <name>\n$translate ocrmodel\n$translate ocrmodel <name>\n$translate provider\n$translate provider <name>\n$translate list\n$translate status\n$translate logs\n$translate logchannel #channel\n$translate logchannel remove\n$translate help`);
   }
 });
 
@@ -1140,6 +1705,22 @@ if (!TOKEN) {
   console.error('Please set DISCORD_TOKEN in .env file or environment variable');
   process.exit(1);
 }
+
+process.on('SIGINT', () => {
+  if (configSaveTimeout) {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  }
+  client.destroy();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  if (configSaveTimeout) {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  }
+  client.destroy();
+  process.exit(0);
+});
 
 client.login(TOKEN);
 

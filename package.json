@@ -5,7 +5,9 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node tests/api.test.js",
+    "test:watch": "node -e \"const t=require('./tests/api.test.js');\""
   },
   "dependencies": {
     "discord.js": "^14.14.1",

@@ -24,7 +24,6 @@ For setup and installation, see the [README](https://github.com/RawBoeuf/transla
 2. Enter API key in the top-right field (default: `translation-bot-secret`)
 3. In the "Translation Channels" section, enter:
    - Channel ID (enable Developer Mode in Discord → right-click channel → Copy ID)
-   - Channel Name (for display)
    - Target Language
 4. Click **Add**
 
@@ -32,7 +31,7 @@ For setup and installation, see the [README](https://github.com/RawBoeuf/transla
 
 Once a channel is configured:
 1. Any user message in that channel triggers the bot
-2. The message is sent to Ollama's gemma3 model
+2. The message is sent to the configured AI provider
 3. The bot replies with an embed showing:
    - The original message
    - The translated message
@@ -70,8 +69,8 @@ $translate status
 
 Shows:
 - Bot connection status
-- Ollama connection status
-- Available AI models
+- AI provider status
+- Available AI models (for Ollama)
 
 ### View Recent Logs
 ```
@@ -104,7 +103,7 @@ $translate model
 $translate model <model-name>
 ```
 
-View or change the Ollama model used for text translation.
+View or change the AI model used for text translation. For cloud providers, enter the model name manually.
 
 ### Change OCR Model
 ```
@@ -112,7 +111,15 @@ $translate ocrmodel
 $translate ocrmodel <model-name>
 ```
 
-View or change the Ollama model used for image text extraction. Defaults to the translation model if not set.
+View or change the AI model used for image text extraction. Defaults to the translation model if not set.
+
+### Change AI Provider
+```
+$translate provider
+$translate provider <provider-name>
+```
+
+View or change the AI provider. Available providers: `ollama`, `openai`, `anthropic`, `google`, `deepseek`, `xai`, `mistral`
 
 ### Show Help
 ```
@@ -123,7 +130,7 @@ Displays all available commands.
 
 ## Supported Languages
 
-The bot uses Ollama's gemma3 model which supports many languages. Common examples:
+The bot uses AI models which support many languages. Common examples:
 - spanish / espanol
 - french
 - german
@@ -141,18 +148,21 @@ You can use any language name the AI model recognizes.
 
 ### Status Panel
 - Bot online/offline status
-- Ollama connection status
+- AI provider connection status
 - Number of active translation channels
 - Total translations count
 
 ### Admin Settings (API Key Required)
 - **API Key**: Authentication for protected actions
+- **AI Provider**: Select provider (Ollama, OpenAI, Anthropic, Google, DeepSeek, xAI, Mistral)
+- **API Key**: Enter API key for cloud providers
+- **Base URL**: Custom endpoint (optional)
 - **Debug Settings**: Toggle debug messages in Activity Log
 - **Log Channel**: Configure Discord channel for bot logs (info, translation, error)
 - **Debug Log Channel**: Configure separate Discord channel for debug logs
 - **Admin Roles**: Manage admin roles
-- **Translation Model**: Select which Ollama model to use for text translation
-- **OCR Model**: Select which Ollama model to use for image text extraction (defaults to translation model)
+- **Translation Model**: Select or enter the AI model to use for text translation
+- **OCR Model**: Select or enter the AI model to use for image text extraction (defaults to translation model)
 
 ### Channel Management
 - View all configured channels
@@ -208,7 +218,7 @@ The bot can extract and translate text from images:
 
 2. **How it works**:
    - When users post images in OCR-enabled channels
-   - Bot extracts text using gemma3 vision model
+   - Bot extracts text using vision-capable AI model
    - Translates the extracted text
 
 3. **Testing OCR**:
@@ -217,7 +227,11 @@ The bot can extract and translate text from images:
    - Select target language
    - Click "Extract & Translate"
 
-**Note**: OCR requires a vision-capable gemma3 model (gemma3:4b or larger)
+**Note**: OCR requires a vision-capable model:
+- Ollama: gemma3:4b, llava
+- OpenAI: gpt-4o
+- Anthropic: Claude 3.5 Sonnet
+- Google: Gemini 1.5 Pro
 
 ## Tips
 
@@ -231,8 +245,9 @@ The bot can extract and translate text from images:
 
 | Issue | Solution |
 |-------|----------|
-| No translation appears | Check `$translate status` - ensure Ollama is running |
+| No translation appears | Check `$translate status` - ensure AI provider is configured |
 | Bot not responding | Verify the bot has permission to send messages in the channel |
 | "Channel not found" error | Use `$translate set` in Discord directly rather than manual ID entry |
-| Slow translations | Ollama may need more resources; check system memory |
-| OCR not working | Ensure you're using a vision model (gemma3:4b or larger) |
+| Slow translations | Check AI provider response times |
+| OCR not working | Ensure you're using a vision-capable model |
+| Cloud API errors | Verify API key and account credits |
