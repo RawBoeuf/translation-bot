@@ -20,7 +20,12 @@
   "ignoredUsers": [],
   "allowedRoles": {},
   "ocrRoles": {},
-  "adminRoles": [],
+  "adminRoles": [
+    {
+      "id": "773604254178345001",
+      "name": "773604254178345001"
+    }
+  ],
   "logChannel": null,
   "debugLogChannel": null,
   "model": "gemma3:latest",

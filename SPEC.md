@@ -68,7 +68,7 @@
 - Public endpoints (no auth): status, logs, history, stats, config (read-only)
 
 ### Data Handling
-- Store translation channel configs in a JSON file (translation-config.json)
+- Store translation channel configs in a JSON file (`translation-config.json`), which is automatically generated on first run
 - Config structure: 
   ```json
   {

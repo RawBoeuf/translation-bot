@@ -114,7 +114,7 @@ The bot uses a `.env` file for configuration. Copy `.env.example` to create your
 
 > **Security:** Change the default `DASHBOARD_API_KEY` before deploying. The default key is publicly known and should only be used for local development.
 
-The bot also stores channel configuration in `translation-config.json`.
+The bot also stores channel configuration in `translation-config.json`, which is automatically generated on first run.
 
 ## Dashboard Authentication
 

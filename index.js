@@ -112,6 +112,22 @@ function loadConfig() {
         aiBaseUrl: '',
       };
     }
+  } else {
+    config = { 
+      channels: {}, 
+      ignoredUsers: [], 
+      allowedRoles: {}, 
+      ocrRoles: {}, 
+      adminRoles: [], 
+      logChannel: null, 
+      debugLogChannel: null, 
+      model: DEFAULT_MODEL, 
+      ocrModel: null,
+      aiProvider: 'ollama',
+      aiApiKey: '',
+      aiBaseUrl: '',
+    };
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
   }
 }
 
